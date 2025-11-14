@@ -213,9 +213,9 @@ class DisplayManager:
                     # 如果有覆盖层，应用到主屏幕上
                     if self.overlay_manager.has_active_overlays():
                         self.main_screen = self.overlay_manager.render(self.main_screen)
-                        # 有覆盖层时保持高帧率
-                        if frame_time > 1.0 / 60.0:
-                            frame_time = 1.0 / 60.0
+                        # # 有覆盖层时保持高帧率
+                        # if frame_time > 1.0 / 60.0:
+                        #     frame_time = 1.0 / 60.0
 
                     self.disp.getbuffer(self.main_screen)
                     self.disp.ShowImage()
