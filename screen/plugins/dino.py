@@ -1,7 +1,7 @@
 import time
 import random
 from screen.base import DisplayPlugin
-from until.device.input import ecodes
+from until.keymap import get_keymap
 
 # 游戏参数
 WIDTH = 128
@@ -215,6 +215,7 @@ class dino(DisplayPlugin):
         self.name = "dino"
         super().__init__(manager, width, height)
         self.frame_time = 1.0 / 30.0  # 30fps = 33.33ms 每帧
+        self.keymap = get_keymap()
         self.reset_game()
         
     def reset_game(self, player="AI"):
@@ -365,8 +366,13 @@ class dino(DisplayPlugin):
         return GAME_FRAME_TIME
 
     def key_callback(self, device_name, evt):
+        # 获取全局功能按键
+        key_select = self.keymap.get_action_select()  # 跳跃/开始游戏
+        key_cancel = self.keymap.get_action_cancel()  # 跳跃/开始游戏
+
         if evt.value == 1:  # key down
-            if evt.code == ecodes.KEY_KP1 or evt.code == ecodes.KEY_KP2:
+            # select 或 cancel 键都可以跳跃/开始游戏
+            if self.keymap.is_key_match(evt.code, key_select) or self.keymap.is_key_match(evt.code, key_cancel):
                 if self.player != "You" or self.game_over:
                     self.reset_game("You")
                 elif self.player == "You":

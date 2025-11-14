@@ -3,14 +3,13 @@ import json
 import subprocess
 import threading
 import time
-import traceback
 
 from screen.base import DisplayPlugin
 from ui.component import draw_scroll_text, draw_vu
 from assets.icons import IconDrawer
 
 from until.log import LOGGER
-from until.device.input import ecodes
+from until.keymap import get_keymap
 
 MPV_SOCKET_PATH = "/tmp/mpv_socket"
 CD_DEVICE = "/dev/sr0"
@@ -40,6 +39,7 @@ class cdplayer(DisplayPlugin):
 
         self.media_player.start_cd_monitor()
         self._is_in_longpress = False
+        self.keymap = get_keymap()
 
     def update(self):
             self.clear()
@@ -113,28 +113,37 @@ class cdplayer(DisplayPlugin):
             self.set_active(False)
 
     def key_callback(self, device_name, evt):
-        if evt.value == 2:  # key down
-            if evt.code == ecodes.KEY_KP1 and not self._is_in_longpress:
+        # 获取全局功能按键
+        key_select = self.keymap.get_action_select()  # 播放/暂停/停止
+        key_cancel = self.keymap.get_action_cancel()  # 下一曲/弹出
+
+        if evt.value == 2:  # long press
+            # 长按 select 键 = 停止
+            if self.keymap.is_key_match(evt.code, key_select) and not self._is_in_longpress:
                 self.media_player.stop()
                 self.media_player.cd.reset()
                 self._is_in_longpress = True
 
-            if evt.code == ecodes.KEY_KP2 and not self._is_in_longpress:
+            # 长按 cancel 键 = 弹出 CD
+            if self.keymap.is_key_match(evt.code, key_cancel) and not self._is_in_longpress:
                 self.media_player.eject()
                 self._is_in_longpress = True
 
         if evt.value == 0:  # key up
             if self.media_player.cd.is_inserted:
-                if evt.code == ecodes.KEY_KP1 and not self._is_in_longpress:
+                # 短按 select 键 = 播放/暂停
+                if self.keymap.is_key_match(evt.code, key_select) and not self._is_in_longpress:
                     if self.media_player.is_running:
                         self.media_player.pause_or_play()
                     else:
                         self.media_player.play()
-                
-                if evt.code == ecodes.KEY_KP2:
+
+                # 短按 cancel 键 = 下一曲
+                if self.keymap.is_key_match(evt.code, key_cancel):
                     self.media_player.next_track()
             else:
-                if evt.code == ecodes.KEY_KP1 and not self._is_in_longpress:
+                # CD 未插入时，select 键尝试播放
+                if self.keymap.is_key_match(evt.code, key_select) and not self._is_in_longpress:
                     self.media_player.try_to_play()
 
             self._is_in_longpress = False  

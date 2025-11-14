@@ -14,8 +14,8 @@ from scipy import signal
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from cryptography.hazmat.backends import default_backend
 from screen.base import DisplayPlugin
-from until.device.input import ecodes
 from until.log import LOGGER
+from until.keymap import get_keymap
 
 from ui.emotion import RobotEmotion
 from ui.textarea import TextArea
@@ -86,33 +86,36 @@ class xiaozhi(DisplayPlugin):
     def __init__(self, manager, width, height):
         self.name = "xiaozhi"
         super().__init__(manager, width, height)
-        
+
         self.mqtt_info = {}
         self._receive_msg = {'session_id': None}
         self.is_listening = False
         self.is_speaking = False
         self.need_add_device = False
-        
+
         self.local_sequence = 0
         self.tts_state = None
-        
+
         self.udp_socket = None
         self.conn_state = False
         self.mqttc = None
         self.mac_addr = get_mac_address()
-        
+
         # 动画相关属性
         self.robot_offset_x = 0
         self.chatbox_offset_x = 0
-        
+
         self.animations = {}  # 存储所有动画状态
         self.anim = Animation(0.3)
-        
+
         self.sleep_time = time.time()
         self.is_sleeping = False
-        
+
         self.robot = RobotEmotion()
         self.text_area = TextArea(font=self.font8,width=CHATBOX_WIDTH,line_spacing=4)
+
+        # init keymap
+        self.keymap = get_keymap()
 
         # init audio & mqtt
         # self.audio = pyaudio.PyAudio()
@@ -481,16 +484,23 @@ class xiaozhi(DisplayPlugin):
         
     # 按键回调
     def key_callback(self, device_name, evt):
+        # 获取全局功能按键
+        key_select = self.keymap.get_action_select()  # 语音输入
+        key_cancel = self.keymap.get_action_cancel()  # 切换聊天框
+
         self._wakeup()
         if evt.value == 1:  # key down
-            if evt.code == ecodes.KEY_KP1:
+            # select 键 = 开始语音输入
+            if self.keymap.is_key_match(evt.code, key_select):
                 self._on_listening()
-            
-            if evt.code == ecodes.KEY_KP2:
+
+            # cancel 键 = 切换聊天框显示
+            if self.keymap.is_key_match(evt.code, key_cancel):
                 self.switch_chatbox()
-                
-        if evt.value == 0:  # key down
-            if evt.code == ecodes.KEY_KP1:
+
+        if evt.value == 0:  # key up
+            # select 键释放 = 停止语音输入
+            if self.keymap.is_key_match(evt.code, key_select):
                 self._off_listening()
                      
     # 设置激活状态

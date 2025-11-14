@@ -5,7 +5,7 @@ from until.log import LOGGER
 
 CARD = "default"
 MIN_DB = -102.0
-STEP = "1.0dB"
+STEP = "2.0dB"
 
 PCM_CONTROLS = []
 
@@ -59,15 +59,44 @@ def get_current_db(control):
         LOGGER.error("Failed to get dB:", e)
     return None
 
+def get_volume_percent():
+    """
+    获取当前音量百分比
+
+    Returns:
+        int: 音量百分比 (0-100)，获取失败返回 None
+    """
+    if not PCM_CONTROLS:
+        return None
+
+    # 获取第一个 PCM 控制器的音量
+    control = PCM_CONTROLS[0]
+    current_db = get_current_db(control)
+    if current_db is None:
+        return None
+
+    return db_to_volume(current_db)
+
+
 def adjust_volume(direction):
+    """
+    调整音量
+
+    Args:
+        direction: "up" 或 "down"
+
+    Returns:
+        int: 调整后的音量百分比，失败返回 None
+    """
     # set volume for all detected PCM controllers
     for control in PCM_CONTROLS:
         current_db = get_current_db(control)
         if current_db is None:
-            return
+            return None
         if direction == "down" and current_db <= MIN_DB:
             LOGGER.info(f"🔇 Already at minimum {MIN_DB}dB")
-            return
+            return db_to_volume(current_db)
+
         delta = STEP + "+" if direction == "up" else STEP + "-"
 
         try:
@@ -77,4 +106,8 @@ def adjust_volume(direction):
                 subprocess.run(["amixer", "-c", CARD, "set", control, delta], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         except Exception as e:
             LOGGER.error(f"set {control} volume failed:", e)
+            return None
+
+    # 返回调整后的音量百分比
+    return get_volume_percent()
             

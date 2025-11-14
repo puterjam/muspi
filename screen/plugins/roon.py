@@ -8,8 +8,8 @@ from ui.component import draw_scroll_text, draw_vu
 from assets.icons import IconDrawer
 
 from until.log import LOGGER
-from until.device.input import ecodes
 from until.config import config
+from until.keymap import get_keymap
 
 # config path
 CONFIG_PATH = "config/roon.json"
@@ -28,7 +28,7 @@ class roon(DisplayPlugin):
     def __init__(self, manager, width, height):
         self.name = "roon"
         super().__init__(manager, width, height)
-        
+
         self.icon_drawer = None
         self.zone_id = None
         self.current_title = "play next"
@@ -43,8 +43,9 @@ class roon(DisplayPlugin):
 
         self.need_auth = False
         self.pause_timout = 30
-        
+
         self.ready = False
+        self.keymap = get_keymap()
 
     def _start_roon_thread(self):
         def roon_thread():
@@ -273,12 +274,22 @@ class roon(DisplayPlugin):
                 
 
     def key_callback(self, device_name, evt):
+        # 获取全局功能按键和媒体按键
+        key_select = self.keymap.get_action_select()  # 播放/暂停
+        key_cancel = self.keymap.get_action_cancel()  # 下一曲
+        key_play_pause = self.keymap.get_media_play_pause()
+        key_next = self.keymap.get_media_next()
+        key_previous = self.keymap.get_media_previous()
+
         if evt.value == 1:  # key down
-            if evt.code == ecodes.KEY_KP1 or evt.code == ecodes.KEY_PLAYPAUSE:
+            # select 键或专用播放/暂停键
+            if self.keymap.is_key_match(evt.code, key_select) or self.keymap.is_key_match(evt.code, key_play_pause):
                 self.roon.playback_control(self.zone_id, control="playpause")
-            if evt.code == ecodes.KEY_KP2 or evt.code == ecodes.KEY_NEXTSONG:
+            # cancel 键或专用下一曲键
+            if self.keymap.is_key_match(evt.code, key_cancel) or self.keymap.is_key_match(evt.code, key_next):
                 self.roon.playback_control(self.zone_id, control="next")
-            if evt.code == ecodes.KEY_PREVIOUSSONG:   
+            # 专用上一曲键
+            if self.keymap.is_key_match(evt.code, key_previous):
                 self.roon.playback_control(self.zone_id, control="previous")
 
     def event_listener(self):

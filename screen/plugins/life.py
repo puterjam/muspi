@@ -1,6 +1,6 @@
 import random
 from screen.base import DisplayPlugin
-from until.device.input import ecodes
+from until.keymap import get_keymap
 
 GAME_FRAME_TIME = 1 / 30
 
@@ -12,6 +12,7 @@ class life(DisplayPlugin):
         self.grid_width = self.width // self.cell_size
         self.grid_height = self.height // self.cell_size
         self.grid = [[0 for _ in range(self.grid_width)] for _ in range(self.grid_height)]
+        self.keymap = get_keymap()
         self.initialize_grid()
         
     def initialize_grid(self):
@@ -73,6 +74,11 @@ class life(DisplayPlugin):
             self.manager.key_listener.off(self.key_callback)
     
     def key_callback(self, device_name, evt):
+        # 获取全局功能按键
+        key_select = self.keymap.get_action_select()  # 重新初始化
+        key_cancel = self.keymap.get_action_cancel()  # 重新初始化
+
         if evt.value == 1:  # key down
-            if evt.code == ecodes.KEY_KP1 or evt.code == ecodes.KEY_KP2:
+            # select 或 cancel 键都可以重新初始化
+            if self.keymap.is_key_match(evt.code, key_select) or self.keymap.is_key_match(evt.code, key_cancel):
                 self.initialize_grid()

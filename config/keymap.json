@@ -1,0 +1,109 @@
+{
+    "_comment": "全局按键映射配置文件",
+    "_description": "定义统一的功能按键，所有插件使用相同的按键配置",
+    "_note": "按键代码参考: https://github.com/torvalds/linux/blob/master/include/uapi/linux/input-event-codes.h",
+
+    "settings": {
+        "_comment": "全局设置",
+        "longpress_threshold": 3.0
+    },
+
+    "keymap": {
+        "_comment": "全局功能按键映射 - 支持键盘、手柄等输入设备",
+
+        "navigation": {
+            "_comment": "导航类按键",
+            "up": ["KEY_UP"],
+            "down": ["KEY_DOWN"],
+            "left": ["KEY_LEFT"],
+            "right": ["KEY_RIGHT"]
+        },
+
+        "action": {
+            "_comment": "功能操作按键",
+            "select": ["KEY_ENTER", "KEY_KP1"],
+            "cancel": ["KEY_ESC", "KEY_KP2"],
+            "menu": ["KEY_FORWARD", "KEY_M"]
+        },
+
+        "media": {
+            "_comment": "媒体控制按键",
+            "play_pause": ["KEY_PLAYPAUSE", "KEY_KP1"],
+            "next": ["KEY_NEXTSONG", "KEY_KP2"],
+            "previous": ["KEY_PREVIOUSSONG"],
+            "stop": ["KEY_STOP"],
+            "volume_up": ["KEY_VOLUMEUP"],
+            "volume_down": ["KEY_VOLUMEDOWN"],
+            "mute": ["KEY_MUTE"]
+        },
+
+        "_usage_note": {
+            "select": "确定键 - 用于确认操作、播放/暂停、跳跃等",
+            "cancel": "取消键 - 用于取消操作、下一曲、切换视图等",
+            "menu": "菜单键 - 用于切换插件、打开菜单等"
+        }
+    },
+
+    "available_keys": {
+        "_comment": "可用的按键列表参考 (仅供参考，方便用户改键)",
+        "media_keys": [
+            "KEY_PLAYPAUSE",
+            "KEY_PLAY",
+            "KEY_PAUSE",
+            "KEY_STOP",
+            "KEY_NEXTSONG",
+            "KEY_PREVIOUSSONG",
+            "KEY_FORWARD",
+            "KEY_REWIND"
+        ],
+        "volume_keys": [
+            "KEY_VOLUMEUP",
+            "KEY_VOLUMEDOWN",
+            "KEY_MUTE"
+        ],
+        "numeric_keys": [
+            "KEY_KP0",
+            "KEY_KP1",
+            "KEY_KP2",
+            "KEY_KP3",
+            "KEY_KP4",
+            "KEY_KP5",
+            "KEY_KP6",
+            "KEY_KP7",
+            "KEY_KP8",
+            "KEY_KP9"
+        ],
+        "navigation_keys": [
+            "KEY_UP",
+            "KEY_DOWN",
+            "KEY_LEFT",
+            "KEY_RIGHT",
+            "KEY_ENTER",
+            "KEY_ESC"
+        ],
+        "function_keys": [
+            "KEY_F1",
+            "KEY_F2",
+            "KEY_F3",
+            "KEY_F4",
+            "KEY_F5",
+            "KEY_F6",
+            "KEY_F7",
+            "KEY_F8",
+            "KEY_F9",
+            "KEY_F10",
+            "KEY_F11",
+            "KEY_F12"
+        ],
+        "gamepad_buttons": [
+            "BTN_A",
+            "BTN_B",
+            "BTN_X",
+            "BTN_Y",
+            "BTN_TL",
+            "BTN_TR",
+            "BTN_SELECT",
+            "BTN_START"
+        ]
+    }
+}

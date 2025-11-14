@@ -6,9 +6,13 @@ from pathlib import Path
 from PIL import Image, ImageDraw
 from until.device.input import KeyListener, ecodes
 from until.device.volume import adjust_volume, detect_pcm_controls
-from ui.animation import Animation
 from until.log import LOGGER
+from until.keymap import get_keymap
+
 from ui.fonts import Fonts
+from ui.animation import Animation
+from ui.overlays import OverlayManager
+
 
 # contrast value
 CONTRAST = 128
@@ -71,12 +75,18 @@ class DisplayManager:
         self.anim = Animation(ANIMATION_DURATION)
         self.anim.reset("main_screen")
 
+        # init keymap
+        self.keymap = get_keymap()
+
+        # init overlay manager
+        self.overlay_manager = OverlayManager(self.disp.width, self.disp.height)
+
         # init sleep
         self.sleep = False
         self.sleep_time = 10 * 60  # 10 minutes idle time
         self.sleep_count = time.time()
         self.longpress_count = time.time()
-        self.longpress_time = 3
+        self.longpress_time = self.keymap.get_longpress_threshold()
 
         # initialize plugins
         self.plugins = []
@@ -126,8 +136,13 @@ class DisplayManager:
     def key_callback(self, device_name, evt):
         """handle the key event"""
 
-        if evt.value == 2:
-            if evt.code == ecodes.KEY_FORWARD:
+        # 获取全局按键
+        key_menu = self.keymap.get_action_menu()
+        key_volume_up = self.keymap.get_media_volume_up()
+        key_volume_down = self.keymap.get_media_volume_down()
+
+        if evt.value == 2:  # long press
+            if self.keymap.is_key_match(evt.code, key_menu):
                 if time.time() - self.longpress_count > self.longpress_time:
                     self.turn_off_screen()
 
@@ -135,19 +150,25 @@ class DisplayManager:
             if self.sleep:
                 self.turn_on_screen()
             else:
-                if evt.code == ecodes.KEY_FORWARD:
+                if self.keymap.is_key_match(evt.code, key_menu):
                     self.active_next()
                     self.longpress_count = time.time()
-                if evt.code == ecodes.KEY_VOLUMEUP:
+
+                if self.keymap.is_key_match(evt.code, key_volume_up):
                     if hasattr(self.last_active, "adjust_volume"):
                         self.last_active.adjust_volume("up")
                     else:
-                        adjust_volume("up")
-                if evt.code == ecodes.KEY_VOLUMEDOWN:
+                        volume = adjust_volume("up")
+                        if volume is not None:
+                            self.overlay_manager.show_volume(volume)
+
+                if self.keymap.is_key_match(evt.code, key_volume_down):
                     if hasattr(self.last_active, "adjust_volume"):
                         self.last_active.adjust_volume("down")
                     else:
-                        adjust_volume("down")
+                        volume = adjust_volume("down")
+                        if volume is not None:
+                            self.overlay_manager.show_volume(volume)
 
     def run(self):
         detect_pcm_controls()
@@ -185,6 +206,17 @@ class DisplayManager:
                         self.last_screen_image = None
 
                     self.main_screen.paste(image, (128 - screen_offset, 0))
+
+                    # 更新覆盖层
+                    self.overlay_manager.update()
+
+                    # 如果有覆盖层，应用到主屏幕上
+                    if self.overlay_manager.has_active_overlays():
+                        self.main_screen = self.overlay_manager.render(self.main_screen)
+                        # 有覆盖层时保持高帧率
+                        if frame_time > 1.0 / 60.0:
+                            frame_time = 1.0 / 60.0
+
                     self.disp.getbuffer(self.main_screen)
                     self.disp.ShowImage()
 
