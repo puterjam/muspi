@@ -33,14 +33,14 @@ class VolumeOverlay(Overlay):
     def render(self):
         """渲染音量通知"""
         # 覆盖层高度约 20 像素
-        overlay_height = 6 
+        overlay_height = 7 
 
         # 音量条整体尺寸:
-        bar_total_width = 32
+        bar_total_width = 24
         bar_total_height = 7
 
         # 居中定位
-        bar_x = (self.width - bar_total_width)
+        bar_x = (self.width - bar_total_width) // 2
         bar_y = (overlay_height - bar_total_height) // 2
 
         # 注意：不绘制黑底，保持背景为黑色（0），用作透明 mask
@@ -49,7 +49,7 @@ class VolumeOverlay(Overlay):
         # 1. 绘制音量框白框 (居中)
         frame_width = bar_total_width - 2
         frame_height = bar_total_height -2
-        frame_x = bar_x + (bar_total_width - frame_width)
+        frame_x = bar_x + (bar_total_width - frame_width) // 2
         frame_y = bar_y + (bar_total_height - frame_height) // 2
 
         self.draw.rectangle(
@@ -60,16 +60,16 @@ class VolumeOverlay(Overlay):
         )
 
         # 3. 绘制音量条填充 (居中于音量框)
-        fill_max_width = frame_width - 2
+        fill_max_width = frame_width - 5
         fill_height = 1
-        fill_x = frame_x + (frame_width - fill_max_width)
+        fill_x = frame_x + (frame_width - fill_max_width) // 2
         fill_y = frame_y + (frame_height - fill_height) // 2
 
         # 根据音量百分比计算填充宽度
         fill_width = int(fill_max_width * self.volume_percent / 100)
         if fill_width > 0:
             self.draw.rectangle(
-                [(fill_x, fill_y), (fill_x + fill_width - 3, fill_y + fill_height - 1)],
+                [(fill_x, fill_y), (fill_x + fill_width, fill_y + fill_height - 1)],
                 fill=255
             )
 

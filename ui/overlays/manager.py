@@ -98,4 +98,4 @@ class OverlayManager:
         Args:
             volume_percent: 音量百分比 (0-100)
         """
-        self.add_overlay(VolumeOverlay(32, 6, volume_percent))
+        self.add_overlay(VolumeOverlay(24, 7, volume_percent))
