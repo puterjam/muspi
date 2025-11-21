@@ -38,7 +38,7 @@
 #               '~'        
 
 # add oled driver (luma.oled based)
-from drive.luma_ssd1305 import ssd1305
+from drive.luma.ssd1305 import ssd1305
 
 # add Display Manager
 from screen.manager import DisplayManager
