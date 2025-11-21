@@ -18,13 +18,15 @@ class DeviceChangeHandler(FileSystemEventHandler):
     def on_created(self, event):
         """Handle device creation"""
         if not event.is_directory and '/dev/input/event' in event.src_path:
-            LOGGER.debug(f"Device created: {event.src_path}")
+            LOGGER.info(f"Device created: {event.src_path}")
+            # Wait a bit for device to be fully initialized
+            time.sleep(0.5)
             self.key_listener.rescan_devices()
 
     def on_deleted(self, event):
         """Handle device deletion"""
         if not event.is_directory and '/dev/input/event' in event.src_path:
-            LOGGER.debug(f"Device deleted: {event.src_path}")
+            LOGGER.info(f"Device deleted: {event.src_path}")
             self.key_listener.rescan_devices()
 
 class KeyListener(threading.Thread):
@@ -63,7 +65,17 @@ class KeyListener(threading.Thread):
 
     def rescan_devices(self):
         """rescan devices and update device list"""
+        old_device_paths = {dev.path for dev in self.devices}
         self.devices = self.scan()
+        new_device_paths = {dev.path for dev in self.devices}
+
+        # Log device changes
+        added = new_device_paths - old_device_paths
+        removed = old_device_paths - new_device_paths
+        if added:
+            LOGGER.info(f"Devices added: {added}")
+        if removed:
+            LOGGER.info(f"Devices removed: {removed}")
 
     def run(self):
         """线程主函数"""
