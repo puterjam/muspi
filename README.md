@@ -24,7 +24,7 @@ Muspi 是一个运行在树莓派上的智能音乐娱乐系统，集成了多�
 - 🎵 **多音源支持**
   - Roon 音乐服务集成
   - AirPlay 2 无线音频流（通过 shairport-sync）
-  - CD 播放支持（使用优化的 cd-discid）
+  - CD 播放支持（可选）
   - 流媒体播放
 
 - 🤖 **AI 助手集成**
@@ -32,29 +32,15 @@ Muspi 是一个运行在树莓派上的智能音乐娱乐系统，集成了多�
   - TTS（文本转语音）功能
   - MQTT 通信
 
-- 📡 **网络优化**
-  - WiFi 防掉线机制
-  - 自动省电模式禁用
-  - 连接保活监控
-
-- 🖥️ **显示系统**
-  - SSD1305 OLED 显示屏支持
-  - 插件化界面系统
-  - 滚动文本显示
-  - 播放状态图标
-  - 音量条可视化
-  - Overlay 层支持
-
-- ⌨️ **输入控制**
-  - 物理按键支持
-  - 自定义键盘映射
-  - 设备热插拔监控（基于 watchdog）
+- 🎮**内置小游戏**
+  - 小恐龙（可选）
+  - life游戏（可选）
 
 ## 硬件要求
 
-- 树莓派（支持 GPIO、SPI、I2C）
+- 树莓派（支持 GPIO、SPI）
 - SSD1305 OLED 显示屏
-- 输入设备（键盘/按键）
+- 输入设备（键盘/按键/蓝牙）
 - 可选：CD 驱动器
 - 可选：音频输出设备（用于 RoonBridge）
 
@@ -64,7 +50,6 @@ Muspi 是一个运行在树莓派上的智能音乐娱乐系统，集成了多�
 - 树莓派 OS 64位（Debian Trixie 或更高版本）
 - Python 3.11+（已测试 Python 3.13）
 - 启用的 SPI 接口
-- 启用的 I2C 接口（可选）
 - WiFi 或有线网络连接
 
 ## 安装步骤
@@ -72,18 +57,22 @@ Muspi 是一个运行在树莓派上的智能音乐娱乐系统，集成了多�
 ### 1. 克隆项目
 
 ```bash
-git clone <repository-url>
+git clone https://github.com/puterjam/muspi.git
 cd muspi
 ```
 
-### 2. 运行依赖安装脚本
+### 2. 运行安装脚本
 
 ```bash
-chmod +x install_dependencies.sh
-./install_dependencies.sh
+chmod +x install.sh
+./install.sh
 ```
 
-> 注意：编译 shairport-sync 需要一些时间，请耐心等待。
+安装脚本提供两种模式：
+- **精简安装**：快速安装，基础功能（约 5 分钟）
+- **完整安装**：包含所有功能（约 30-60 分钟，需编译）
+
+> 注意：完整安装需要编译 shairport-sync 等组件，需要较长时间。
 
 ### 3. 启用硬件接口
 
@@ -110,6 +99,11 @@ source venv/bin/activate
 python main.py
 ```
 
+## 📚 文档导航
+
+- **[插件开发规范](docs/plugins.md)** - 插件开发完整指南、API 参考和示例
+- **[按键映射配置](docs/keymap.md)** - 按键配置说明和编程接口
+
 ## 项目结构
 
 ```
@@ -124,10 +118,40 @@ muspi/
 │   └── plugins/        # 显示插件
 ├── until/               # 工具模块
 │   ├── device/         # 设备管理
+│   ├── keymap.py       # 按键映射
 │   └── log.py          # 日志工具
+├── docs/                # 文档
+│   ├── plugins.md      # 插件开发规范
+│   └── keymap.md       # 按键映射配置
+├── config/              # 配置文件
+│   ├── keymap.json     # 按键配置
+│   └── plugins.json    # 插件配置
 ├── requirements.txt     # Python 依赖
-└── install_dependencies.sh  # 依赖安装脚本
+├── install.sh           # 安装脚本
+└── install_service.sh   # 服务安装脚本
 ```
+
+## 插件开发
+
+Muspi 支持插件化的显示系统，你可以开发自己的插件来扩展功能。
+
+### 快速开始
+
+1. **查看插件开发文档**: [docs/plugins.md](docs/plugins.md)
+2. **参考示例插件**:
+   - 简单时钟: [screen/plugins/clock.py](screen/plugins/clock.py)
+   - 游戏示例: [screen/plugins/life.py](screen/plugins/life.py)
+   - CD 播放器: [screen/plugins/cdplayer.py](screen/plugins/cdplayer.py)
+
+### 插件特性
+
+- 🎨 基于 PIL 的绘图 API
+- ⌨️ 完整的按键事件处理
+- 🔄 灵活的生命周期管理
+- 📊 可调节的帧率控制
+- 🎯 自动激活/停用机制
+
+详细文档请查看 **[插件开发规范](docs/plugins.md)**
 
 ## 更新日志
 

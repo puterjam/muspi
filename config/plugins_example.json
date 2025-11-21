@@ -4,43 +4,57 @@
             "name": "xiaozhi",
             "enabled": true,
             "auto_hide": false,
-            "config": {}
+            "requires": ["minimal"],
+            "config": {},
+            "description": "小智语音助手"
         },
         {
             "name": "clock",
             "enabled": true,
             "auto_hide": false,
-            "config": {}
+            "requires": ["minimal"],
+            "config": {},
+            "description": "时钟显示"
         },
         {
             "name": "dino",
             "enabled": true,
             "auto_hide": false,
-            "config": {}
+            "requires": ["minimal"],
+            "config": {},
+            "description": "小恐龙游戏"
         },
         {
             "name": "life",
             "enabled": true,
             "auto_hide": false,
-            "config": {}
+            "requires": ["minimal"],
+            "config": {},
+            "description": "生命游戏"
         },
         {
             "name": "airplay",
             "enabled": true,
             "auto_hide": true,
-            "config": {}
+            "requires": ["full", "shairport-sync"],
+            "config": {},
+            "description": "AirPlay 2 音频流"
         },
         {
             "name": "roon",
             "enabled": true,
             "auto_hide": false,
-            "config": {}
+            "requires": ["full", "roonbridge"],
+            "config": {},
+            "description": "Roon 音乐服务"
         },
         {
             "name": "cdplayer",
             "enabled": true,
             "auto_hide": false,
-            "config": {}
+            "requires": ["full", "mpv"],
+            "config": {},
+            "description": "CD 播放器"
         }
     ]
 } 
