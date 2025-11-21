@@ -76,23 +76,16 @@ from screen.base import DisplayPlugin
 ```python
 class myplugin(DisplayPlugin):
     def __init__(self, manager, width, height):
-        # 设置插件名称（必须在调用 super().__init__ 之前）
+        """插件初始化"""
         self.name = "myplugin"
-
-        # 调用父类构造函数
         super().__init__(manager, width, height)
 
-        # 初始化插件特定的属性
-        self.counter = 0
-
-    def update(self):
-        """更新显示内容（必须实现）"""
-        # 清空画布
-        self.clear()
-
-        # 绘制内容
-        self.draw.text((10, 10), f"Counter: {self.counter}", fill=1, font=self.font12)
-        self.counter += 1
+    def render(self):
+        """每帧调用，用于渲染内容（推荐）"""
+        # update() 会自动调用 clear() 然后调用 render()
+        # 使用 self.canvas 绘制内容
+        draw = self.canvas
+        draw.text((10, 10), "Hello", fill=1, font=self.font12)
 ```
 
 ### 4. 配置插件
@@ -117,66 +110,6 @@ class myplugin(DisplayPlugin):
 - `enabled`: 是否启用插件
 - `auto_hide`: 是否在没有活动时自动隐藏
 - `config`: 插件特定的配置参数（可选）
-
----
-
-## 插件生命周期
-
-### 生命周期方法
-
-**使用 `render()` 方法渲染内容**
-
-```python
-class myplugin(DisplayPlugin):
-    def __init__(self, manager, width, height):
-        """插件初始化"""
-        self.name = "myplugin"
-        super().__init__(manager, width, height)
-
-    def render(self):
-        """每帧调用，用于渲染内容（推荐）"""
-        # update() 会自动调用 clear() 然后调用 render()
-        # 使用 self.canvas 绘制内容
-        draw = self.canvas
-        draw.text((10, 10), "Hello", fill=1, font=self.font12)
-```
-
-**其他生命周期方法：**
-
-```python
-    def event_listener(self):
-        """每帧调用，用于监听和处理事件（可选）"""
-        pass
-
-    def set_active(self, active):
-        """激活/停用插件时调用"""
-        super().set_active(active)
-
-        if active:
-            # 插件被激活时的处理
-            self.manager.key_listener.on(self.key_callback)
-        else:
-            # 插件被停用时的处理
-            self.manager.key_listener.off(self.key_callback)
-
-    def key_callback(self, device_name, evt):
-        """按键事件回调（如果需要处理输入）"""
-        pass
-
-    def is_playing(self):
-        """返回插件是否正在播放（可选）"""
-        return False
-
-    @property
-    def framerate(self):
-        """获取当前帧率（FPS）"""
-        return self._fps
-
-    @framerate.setter
-    def framerate(self, value):
-        """设置帧率（FPS）"""
-        self._fps = value  # 25 FPS
-```
 
 ---
 
