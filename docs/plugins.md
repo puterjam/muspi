@@ -27,8 +27,33 @@ Muspi 使用插件系统来管理不同的显示内容。每个插件负责：
 
 1. 插件文件位于 `screen/plugins/` 目录
 2. 插件配置在 `config/plugins.json` 中管理
-3. 系统通过动态导入加载启用的插件
+3. 系统通过**动态导入**加载启用的插件（懒加载，提升启动性能）
 4. 插件类名必须与文件名一致（小写）
+
+### 最新特性 (v2025.11.22)
+
+#### 🚀 性能优化
+- **懒加载机制**: 插件模块仅在需要时才导入，大幅提升启动速度
+- **渲染接口优化**: 新增 `render()` 方法和 `canvas` 属性，简化绘图流程
+- **帧率控制改进**: 使用 `self.framerate` 属性设置 FPS，更直观
+
+#### 🎨 新驱动支持
+- **luma.oled 驱动**: 迁移到标准 luma.oled 库，提供更好的兼容性
+- **统一绘图接口**: 使用 PIL ImageDraw 标准接口
+
+#### 📦 可用插件列表
+
+| 插件名称 | 类型 | 说明 | 帧率 |
+|---------|------|------|------|
+| `clock` | 工具 | 时钟显示（时间、日期） | 8 FPS |
+| `roon` | 音乐 | Roon 音乐播放器 | 8 FPS |
+| `airplay` | 音乐 | AirPlay 2 无线音频流 | 8 FPS |
+| `cdplayer` | 音乐 | CD 播放器 | 8 FPS |
+| `xiaozhi` | AI | 小智语音助手 | 8 FPS |
+| `dino` | 游戏 | 小恐龙跳跃游戏 | 30 FPS |
+| `life` | 游戏 | 康威生命游戏 | 30 FPS |
+| `matrix` | 动画 | Matrix 数字雨效果 | 25 FPS |
+| `hello` | 演示 | Hello World 演示插件 | 8 FPS |
 
 ---
 
@@ -99,6 +124,8 @@ class myplugin(DisplayPlugin):
 
 ### 生命周期方法
 
+**使用 `render()` 方法渲染内容**
+
 ```python
 class myplugin(DisplayPlugin):
     def __init__(self, manager, width, height):
@@ -106,10 +133,17 @@ class myplugin(DisplayPlugin):
         self.name = "myplugin"
         super().__init__(manager, width, height)
 
-    def update(self):
-        """每帧调用，用于更新显示内容（必须实现）"""
-        pass
+    def render(self):
+        """每帧调用，用于渲染内容（推荐）"""
+        # update() 会自动调用 clear() 然后调用 render()
+        # 使用 self.canvas 绘制内容
+        draw = self.canvas
+        draw.text((10, 10), "Hello", fill=1, font=self.font12)
+```
 
+**其他生命周期方法：**
+
+```python
     def event_listener(self):
         """每帧调用，用于监听和处理事件（可选）"""
         pass
@@ -133,9 +167,15 @@ class myplugin(DisplayPlugin):
         """返回插件是否正在播放（可选）"""
         return False
 
-    def get_frame_time(self):
-        """返回帧时间（秒），控制更新频率"""
-        return 1.0 / 8.0  # 默认 8 FPS
+    @property
+    def framerate(self):
+        """获取当前帧率（FPS）"""
+        return self._fps
+
+    @framerate.setter
+    def framerate(self, value):
+        """设置帧率（FPS）"""
+        self._fps = value  # 25 FPS
 ```
 
 ---
@@ -154,6 +194,7 @@ class myplugin(DisplayPlugin):
 #### 绘图对象
 - `self.image`: PIL Image 对象
 - `self.draw`: PIL ImageDraw 对象，用于绘制图形
+- `self.canvas`: 与 `self.draw` 相同，推荐在 `render()` 方法中使用
 
 #### 字体
 - `self.font_status`: 5px 字体（状态栏）
@@ -260,7 +301,19 @@ class myplugin(DisplayPlugin):
 
 ### 1. 性能优化
 
-**控制帧率：**
+**控制帧率（新方式 - 推荐）：**
+```python
+def __init__(self, manager, width, height):
+    self.name = "myplugin"
+    super().__init__(manager, width, height)
+
+    # 设置帧率
+    self.framerate = 30.0  # 30 FPS（高帧率动画）
+    # 或
+    self.framerate = 2.0   # 2 FPS（静态内容）
+```
+
+**控制帧率（旧方式 - 已弃用）：**
 ```python
 def get_frame_time(self):
     # 静态内容使用低帧率
@@ -406,6 +459,10 @@ class life(DisplayPlugin):
     def __init__(self, manager, width, height):
         self.name = "life"
         super().__init__(manager, width, height)
+
+        # 设置帧率
+        self.framerate = 30.0  # 30 FPS
+
         self.cell_size = 2
         self.grid_width = self.width // self.cell_size
         self.grid_height = self.height // self.cell_size
@@ -432,9 +489,9 @@ class life(DisplayPlugin):
                 count += self.grid[ny][nx]
         return count
 
-    def update(self):
-        """更新游戏状态并渲染"""
-        self.clear()
+    def render(self):
+        """渲染游戏状态"""
+        draw = self.canvas
 
         # 计算下一代
         new_grid = [[0 for _ in range(self.grid_width)]
@@ -454,16 +511,12 @@ class life(DisplayPlugin):
         for y in range(self.grid_height):
             for x in range(self.grid_width):
                 if self.grid[y][x] == 1:
-                    self.draw.rectangle([
+                    draw.rectangle([
                         x * self.cell_size,
                         y * self.cell_size,
                         (x + 1) * self.cell_size - 1,
                         (y + 1) * self.cell_size - 1
                     ], fill=1)
-
-    def get_frame_time(self):
-        """游戏帧率"""
-        return 1.0 / 30.0  # 30 FPS
 
     def set_active(self, active):
         """激活/停用处理"""
@@ -485,7 +538,121 @@ class life(DisplayPlugin):
                 self.initialize_grid()  # 重新初始化
 ```
 
-### 示例 3: 音乐播放器插件框架
+### 示例 3: Matrix 数字雨动画插件
+
+Matrix 插件展示了如何创建复杂的动画效果，包括渐变模拟和高帧率渲染。
+
+```python
+from screen.base import DisplayPlugin
+from random import randint, gauss
+
+FPS = 25.0
+
+class matrix(DisplayPlugin):
+    """Matrix 数字雨插件 - 黑客帝国风格动画"""
+
+    def __init__(self, manager, width, height):
+        self.name = "matrix"
+        super().__init__(manager, width, height)
+
+        self.framerate = FPS
+        self._init_matrix()
+
+    def _init_matrix(self):
+        """初始化 Matrix 数据结构"""
+        # 定义灰度级别（模拟绿色渐变）
+        wrd_rgb = [
+            (154, 173, 154),  # 灰绿色
+            (0, 255, 0),      # 最亮绿
+            (0, 235, 0),
+            (0, 220, 0),
+            (0, 185, 0),
+            (0, 165, 0),
+            (0, 128, 0),
+            (0, 0, 0),        # 黑色
+            (154, 173, 154),
+            (0, 145, 0),
+            (0, 125, 0),
+            (0, 100, 0),
+            (0, 80, 0),
+            (0, 60, 0),
+            (0, 40, 0),
+            (0, 0, 0)
+        ]
+
+        # 转换为单色灰度值（取绿色通道值）
+        self.gray_levels = [rgb[1] for rgb in wrd_rgb]
+
+        self.clock = 0
+        self.blue_pilled_population = []  # 雨滴列表
+        self.max_population = self.width * 8
+
+    def increase_population(self):
+        """增加一个新的雨滴 [x位置, y位置, 速度]"""
+        x = randint(0, self.width - 1)
+        y = 0
+        speed = gauss(1, 0.4)  # 正态分布的速度
+        speed = max(0.3, min(speed, 3.0))  # 限制速度范围
+
+        self.blue_pilled_population.append([x, y, speed])
+
+    def render(self):
+        """渲染 Matrix 数字雨效果"""
+        draw = self.canvas
+        self.clock += 1
+
+        # 绘制所有雨滴
+        for person in self.blue_pilled_population:
+            x, y, speed = person
+
+            # 绘制渐变尾巴
+            for i, gray in enumerate(self.gray_levels):
+                tail_y = int(y - i)  # 尾巴向上延伸
+
+                if 0 <= tail_y < self.height:
+                    # 单色屏幕灰度模拟：使用概率抖动
+                    if gray == 255:
+                        draw.point((x, tail_y), fill=255)
+                    elif gray > 128:
+                        if randint(0, 3) < 3:  # 75% 概率
+                            draw.point((x, tail_y), fill=255)
+                    elif gray > 64:
+                        if randint(0, 1) == 1:  # 50% 概率
+                            draw.point((x, tail_y), fill=255)
+                    elif gray > 32:
+                        if randint(0, 3) == 0:  # 25% 概率
+                            draw.point((x, tail_y), fill=255)
+
+            # 更新雨滴位置
+            person[1] += speed
+
+        # 定期增加新雨滴
+        if self.clock % 5 == 0 or self.clock % 3 == 0:
+            self.increase_population()
+
+        # 移除超出屏幕的雨滴
+        tail_length = len(self.gray_levels)
+        self.blue_pilled_population = [
+            person for person in self.blue_pilled_population
+            if person[1] < self.height + tail_length
+        ]
+
+        # 限制最大雨滴数量
+        while len(self.blue_pilled_population) > self.max_population:
+            self.blue_pilled_population.pop(0)
+
+    def get_frame_time(self):
+        """高帧率动画"""
+        return 1.0 / self.framerate  # 25 FPS
+```
+
+**关键技术点：**
+- 使用概率抖动在单色屏幕上模拟灰度渐变
+- 高帧率渲染（25 FPS）实现流畅动画
+- 粒子系统管理雨滴的生成、更新和销毁
+- 正态分布的速度产生自然的视觉效果
+
+### 示例 4: 音乐播放器插件框架
 
 ```python
 import threading
