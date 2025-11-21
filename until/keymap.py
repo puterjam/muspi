@@ -193,6 +193,14 @@ class KeyMap:
         """获取菜单键 (切换插件、菜单等)"""
         return self.get_key("action", "menu")
 
+    def get_action_next_screen(self):
+        """获取下一屏键"""
+        return self.get_key("action", "next_screen")
+
+    def get_action_previous_screen(self):
+        """获取上一屏键"""
+        return self.get_key("action", "previous_screen")
+
     # 媒体键
     def get_media_play_pause(self):
         """获取播放/暂停键"""

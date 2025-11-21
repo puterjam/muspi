@@ -20,6 +20,7 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+*.DS_Store
 
 # Virtual Environment
 venv/
@@ -42,3 +43,5 @@ Thumbs.db
 
 # Project
 config/cd/
+._=3.0.0
+._=3.0.0

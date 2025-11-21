@@ -85,8 +85,11 @@ class DisplayManager:
         self.sleep = False
         self.sleep_time = 10 * 60  # 10 minutes idle time
         self.sleep_count = time.time()
-        self.longpress_count = time.time()
-        self.longpress_time = self.keymap.get_longpress_threshold()
+
+        # init volume long press
+        self.volume_adjust_interval = 0.03  # 30ms interval for comfortable volume adjustment
+        self.last_volume_adjust_time = 0
+        self.volume_adjusting = False
 
         # initialize plugins
         self.plugins = []
@@ -113,6 +116,7 @@ class DisplayManager:
         if self.last_active:
             self.last_screen_image = self.last_active.get_image()
             self.anim.reset("main_screen")
+            self.anim.direction = 1  # forward direction
             self.last_active.set_active(False)
 
         next_id = (self.active_id + 1) % len(self.plugins)
@@ -127,48 +131,105 @@ class DisplayManager:
 
         self.plugins[next_id]["plugin"].set_active(True)
 
+    def active_prev(self):
+        """activate the previous plugin"""
+        if self.last_active:
+            self.last_screen_image = self.last_active.get_image()
+            self.anim.reset("main_screen")
+            self.anim.direction = -1  # reverse direction
+            self.last_active.set_active(False)
+
+        prev_id = (self.active_id - 1) % len(self.plugins)
+
+        # check if the previous plugin is a player and not playing
+        while (
+            self.plugins[prev_id]["auto_hide"]
+            and hasattr(self.plugins[prev_id]["plugin"], "is_playing")
+            and not self.plugins[prev_id]["plugin"].is_playing()
+        ):
+            prev_id = (prev_id - 1) % len(self.plugins)
+
+        self.plugins[prev_id]["plugin"].set_active(True)
+
+    def _adjust_volume_with_interval(self, direction):
+        """Adjust volume with interval control for comfortable long press"""
+        if not self.volume_adjusting:
+            return  # Don't adjust if not currently pressing
+
+        current_time = time.time()
+        if current_time - self.last_volume_adjust_time >= self.volume_adjust_interval:
+            if hasattr(self.last_active, "adjust_volume"):
+                self.last_active.adjust_volume(direction)
+            else:
+                volume = adjust_volume(direction)
+                if volume is not None:
+                    self.overlay_manager.show_volume(volume)
+            self.last_volume_adjust_time = current_time
+
     def _signal_handler(self, signum, frame):
         """handle the termination signal"""
         LOGGER.info(f"get signal {signum}, cleaning up...")
         self.cleanup()
         sys.exit(0)
 
+    # 处理按键事件
     def key_callback(self, device_name, evt):
         """handle the key event"""
 
         # 获取全局按键
-        key_menu = self.keymap.get_action_menu()
+        key_next_screen = self.keymap.get_action_next_screen()
+        key_previous_screen = self.keymap.get_action_previous_screen()
         key_volume_up = self.keymap.get_media_volume_up()
         key_volume_down = self.keymap.get_media_volume_down()
 
-        if evt.value == 2:  # long press
-            if self.keymap.is_key_match(evt.code, key_menu):
-                if time.time() - self.longpress_count > self.longpress_time:
-                    self.turn_off_screen()
+        # 获取导航键
+        key_nav_left = self.keymap.get_nav_left()
+        key_nav_right = self.keymap.get_nav_right()
+        key_nav_up = self.keymap.get_nav_up()
+        key_nav_down = self.keymap.get_nav_down()
+
+        # Check if it's a volume key
+        is_volume_up = self.keymap.is_key_match(evt.code, key_volume_up) or \
+                       self.keymap.is_key_match(evt.code, key_nav_up)
+        is_volume_down = self.keymap.is_key_match(evt.code, key_volume_down) or \
+                         self.keymap.is_key_match(evt.code, key_nav_down)
 
         if evt.value == 1:  # key down
             if self.sleep:
                 self.turn_on_screen()
             else:
-                if self.keymap.is_key_match(evt.code, key_menu):
+                # Screen switching: next_screen/previous_screen or left/right
+                if self.keymap.is_key_match(evt.code, key_next_screen) or \
+                   self.keymap.is_key_match(evt.code, key_nav_right):
                     self.active_next()
-                    self.longpress_count = time.time()
 
-                if self.keymap.is_key_match(evt.code, key_volume_up):
-                    if hasattr(self.last_active, "adjust_volume"):
-                        self.last_active.adjust_volume("up")
-                    else:
-                        volume = adjust_volume("up")
-                        if volume is not None:
-                            self.overlay_manager.show_volume(volume)
+                if self.keymap.is_key_match(evt.code, key_previous_screen) or \
+                   self.keymap.is_key_match(evt.code, key_nav_left):
+                    self.active_prev()
 
-                if self.keymap.is_key_match(evt.code, key_volume_down):
-                    if hasattr(self.last_active, "adjust_volume"):
-                        self.last_active.adjust_volume("down")
-                    else:
-                        volume = adjust_volume("down")
-                        if volume is not None:
-                            self.overlay_manager.show_volume(volume)
+                # Volume adjustment on initial press
+                if is_volume_up:
+                    self.volume_adjusting = True
+                    self._adjust_volume_with_interval("up")
+
+                if is_volume_down:
+                    self.volume_adjusting = True
+                    self._adjust_volume_with_interval("down")
+
+        elif evt.value == 2:  # key repeat (long press)
+            if not self.sleep:
+                # Continue volume adjustment during long press
+                if is_volume_up:
+                    self._adjust_volume_with_interval("up")
+
+                if is_volume_down:
+                    self._adjust_volume_with_interval("down")
+
+        elif evt.value == 0:  # key release
+            # Reset volume adjusting flag and timer
+            if is_volume_up or is_volume_down:
+                self.volume_adjusting = False
+                self.last_volume_adjust_time = 0
 
     def run(self):
         detect_pcm_controls()
@@ -205,7 +266,13 @@ class DisplayManager:
                         frame_time = self.last_active.get_frame_time()
                         self.last_screen_image = None
 
-                    self.main_screen.paste(image, (128 - screen_offset, 0))
+                    # Calculate offset based on animation direction
+                    if self.anim.direction == 1:  # forward (next)
+                        paste_x = 128 - screen_offset
+                    else:  # backward (previous)
+                        paste_x = screen_offset - 128
+
+                    self.main_screen.paste(image, (paste_x, 0))
 
                     # 更新覆盖层
                     self.overlay_manager.update()

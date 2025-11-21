@@ -7,10 +7,11 @@ roonapi>=0.1.6  # Roon API 客户端
 # 驱动相关
 evdev>=1.0.0  # 事件驱动设备库
 gpiozero>=1.0.0  # GPIO 库
+lgpio>=0.2.2.0  # 现代 GPIO 库 (推荐)
 smbus>=1.0.0  # I2C 库
 spidev>=1.0.0  # SPI 库
 smbus2>=0.4.1  # I2C 库
-pyinotify>=0.9.6  # 文件监控库
+watchdog>=3.0.0  # 文件监控库
 
 # 音频与小智相关
 opuslib>=3.0.1  # Opus 音频库
@@ -19,4 +20,5 @@ scipy>=1.15.2  # 科学计算库
 cryptography>=41.0.1  # 加密库
 paho-mqtt>=2.1.0  # MQTT 库
 musicbrainzngs>=0.7  # MusicBrainz 库
-libdiscid>=2.0.0  # DiscID 库
+cython>=0.29.36  # Cython 编译库
+python-libdiscid>=0.3.0  # DiscID 库

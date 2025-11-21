@@ -6,6 +6,7 @@ class Animation:
         self.animation_list = {}
         self.default_duration = duration
         self.default_operator = Operator.ease_in_quad
+        self.direction = 1  # 1 for forward, -1 for backward
 
     def reset(self,id,current=0):
         '''

@@ -1,5 +1,7 @@
 import musicbrainzngs as mb
+import libdiscid
 import json
+import os
 import subprocess
 import threading
 import time
@@ -13,18 +15,6 @@ from until.keymap import get_keymap
 
 MPV_SOCKET_PATH = "/tmp/mpv_socket"
 CD_DEVICE = "/dev/sr0"
-
-def safe_read_disc(timeout=30):
-    try:
-        result = subprocess.run(
-            ["python3", "until/device/disc_reader.py"],
-            capture_output=True, timeout=timeout
-        )
-        output = result.stdout.decode()
-        return json.loads(output)
-    except subprocess.TimeoutExpired:
-        LOGGER.error("Timeout reading disc ID (subprocess)")
-        return None
         
 class cdplayer(DisplayPlugin):
     def __init__(self, manager, width, height):
@@ -130,21 +120,21 @@ class cdplayer(DisplayPlugin):
                 self._is_in_longpress = True
 
         if evt.value == 0:  # key up
-            if self.media_player.cd.is_inserted:
-                # 短按 select 键 = 播放/暂停
-                if self.keymap.is_key_match(evt.code, key_select) and not self._is_in_longpress:
-                    if self.media_player.is_running:
-                        self.media_player.pause_or_play()
-                    else:
-                        self.media_player.play()
-
-                # 短按 cancel 键 = 下一曲
-                if self.keymap.is_key_match(evt.code, key_cancel):
-                    self.media_player.next_track()
-            else:
-                # CD 未插入时，select 键尝试播放
-                if self.keymap.is_key_match(evt.code, key_select) and not self._is_in_longpress:
+            # 短按 select 键 = 播放/暂停/尝试播放
+            if self.keymap.is_key_match(evt.code, key_select) and not self._is_in_longpress:
+                if self.media_player.is_running:
+                    # 正在播放，则暂停/恢复
+                    self.media_player.pause_or_play()
+                elif self.media_player.cd.is_inserted and self.media_player.cd.read_status != "reading":
+                    # CD已插入且读取完成，直接播放
+                    self.media_player.play()
+                else:
+                    # CD未插入或正在读取，尝试加载并播放
                     self.media_player.try_to_play()
+
+            # 短按 cancel 键 = 下一曲
+            if self.keymap.is_key_match(evt.code, key_cancel) and self.media_player.cd.is_inserted:
+                self.media_player.next_track()
 
             self._is_in_longpress = False  
 
@@ -157,6 +147,7 @@ class MediaPlayer:
         self.MPV_COMMAND = ["mpv", "--quiet", "--vo=null",
                             "--no-audio-display",
                             "--cache=auto",
+                            "--audio-device=alsa",
                             "--input-ipc-server=" + MPV_SOCKET_PATH]
         
         self.current_artist = "Unknown"
@@ -171,8 +162,18 @@ class MediaPlayer:
         self.read_mpv_thread = None
     
     def try_to_play(self):
+        # If already reading, don't trigger another read
+        if self.cd.read_status == "reading":
+            LOGGER.info("cd is already reading, please wait")
+            return
+
+        # If already running, just resume/unpause
+        if self.is_running:
+            LOGGER.info("player is already running")
+            return
+
         def _callback(is_inserted):
-            LOGGER.info("cd loaded")
+            LOGGER.info(f"cd loaded: {is_inserted}")
             if is_inserted:
                 self.play()
             else:
@@ -192,17 +193,27 @@ class MediaPlayer:
         threading.Thread(target=_run, daemon=True).start()
     
     def play(self):
+        # Prevent duplicate play
+        if self.is_running:
+            LOGGER.warning('player is already running, ignoring play request')
+            return
+
+        # Check if CD is properly loaded
+        if not self.cd.is_inserted or self.cd.disc is None:
+            LOGGER.warning('CD not properly loaded, cannot play')
+            return
+
         LOGGER.info('playing audio from CD')
-        self._mpv = subprocess.Popen(self.MPV_COMMAND + ['cdda://'], 
+        self._mpv = subprocess.Popen(self.MPV_COMMAND + ['cdda://'],
                                      bufsize=1,
                                      stdout=subprocess.PIPE,
                                      universal_newlines=True)
         # 启动监听线程
-        self.read_mpv_thread = threading.Thread(target=self._monitor_mpv_output, 
+        self.read_mpv_thread = threading.Thread(target=self._monitor_mpv_output,
                         args=(self._mpv.stdout,),
                         daemon=True)
         self.read_mpv_thread.start()
-        
+
         self.read_meta_thread = threading.Thread(target=self._read_meta, daemon=True)
         self.read_meta_thread.start() 
 
@@ -219,13 +230,13 @@ class MediaPlayer:
         for line in pipe:
             if not line:
                 break
-            LOGGER.info(f"mpv: {line.strip()}")
+            LOGGER.info(f"\033[1m\033[32mmpv monitor\033[0m: {line.strip()}")
 
             if 'Exiting...' in line:
                 self.stop()
                 self.is_player_ready = False
 
-            if '[cdda]' in line:
+            if '[cdda]' or '[alsa]' in line:
                 self._set_current_track_info()
                 self.is_player_ready = True
 
@@ -255,6 +266,7 @@ class MediaPlayer:
     def next_track(self):
         if self.is_running and self.chapter is not None:
             try:
+                self.play_state = "pause"
                 self._run_command('add', 'chapter', '1')
             except Exception:
                 LOGGER.error("last track.")
@@ -262,7 +274,11 @@ class MediaPlayer:
 
     def prev_track(self):
         if self.is_running and self.chapter is not None:
-            self._run_command('add', 'chapter', '-1')
+            try:
+                self.play_state = "pause"
+                self._run_command('add', 'chapter', '-1')
+            except Exception:
+                LOGGER.error("first track.")
         self._set_current_track_info()
 
     def _set_current_track_info(self):
@@ -280,25 +296,35 @@ class MediaPlayer:
         self.cd.eject()
 
     def _run_command(self, *command):
+        # LOGGER.info(f"run command: {command}")
+        # Check if socket exists before trying to connect
+        if not os.path.exists(MPV_SOCKET_PATH):
+            return None
+
         command_dict = {
             "command": command
         }
         command_json = json.dumps(command_dict) + '\n'
-        socat = subprocess.Popen(['socat', '-', MPV_SOCKET_PATH], stdin=subprocess.PIPE,
-                                 stdout=subprocess.PIPE)
-        socat_output = socat.communicate(command_json.encode('utf-8'))
-        if socat_output[0] is not None and \
-                        len(socat_output[0]) != 0 and \
-                        socat_output[1] is None:
-            try:
-                data = json.loads(socat_output[0].decode())
-                if 'data' in data:
-                    return data['data']
-                else:
+        try:
+            socat = subprocess.Popen(['socat', '-', MPV_SOCKET_PATH], stdin=subprocess.PIPE,
+                                     stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            socat_output = socat.communicate(command_json.encode('utf-8'))
+            
+            
+            if socat_output[0] is not None and \
+                            len(socat_output[0]) != 0:
+                try:
+                    data = json.loads(socat_output[0].decode())
+                    if 'data' in data:
+                        return data['data']
+                    else:
+                        return None
+                except Exception as e:
+                    LOGGER.error(f"run command error: {e}")
                     return None
-            except Exception as e:
-                LOGGER.error(f"run command error: {e}")
-                return None
+        except Exception:
+            # Socket not ready yet, silently return None
+            return None
             
     @property
     def is_running(self):
@@ -424,58 +450,59 @@ class CD:
         加载CD
         '''
         try:
+            # Prevent duplicate loading
             if self.read_status == "reading":
+                LOGGER.warning("CD is already being read")
                 return False
-            
-            LOGGER.info("read cd")
-            self.read_status = "reading"
-            self.disc = safe_read_disc()
-            # self.disc = {
-            #     "id": "We9o3Ox.OQxmuiYV1e9De8cFvZE-",
-            #     "toc": "1 12 194955 150 16300 32437 46900 65182 79672 94826 111690 128957 144907 159832 178687"
-            # }
 
-            if self.disc["toc"] == "":
+            LOGGER.info("Read CD")
+            self.read_status = "reading"
+
+            # Use libdiscid to read disc
+            self.disc = libdiscid.read(CD_DEVICE)
+
+            if not self.disc or self.disc.toc == "":
                 self._no_disc()
                 return False
-            
+
             self.read_status = "readed"
-            LOGGER.info("read cd done.")
+            LOGGER.info("CD readed.")
+            LOGGER.info(f"disc id: {self.disc.id}")
+            LOGGER.info(f"disc toc: {self.disc.toc}")
 
             #set default value
-            _toc = self.disc['toc'].split(' ')
+            _toc = self.disc.toc.split(' ')
             self.artist = "Unknown Artist"
             self.album = ""
             self.track_length = int(_toc[1])
             self.tracks = [[f"Track {i+1}", "Unknown"] for i in range(self.track_length)]
-            self._is_cd_inserted=True
+            self._is_cd_inserted = True
 
             #load cd info from file
             try:
-                LOGGER.info(f"load cd info from config/cd/{self.disc['id']}.json")
-                _cd_info = open(f"config/cd/{self.disc['id']}.json", "r").read()
+                LOGGER.info(f"load cd info from config/cd/{self.disc.id}.json")
+                _cd_info = open(f"config/cd/{self.disc.id}.json", "r").read()
                 self._fix_info(json.loads(_cd_info))
 
                 return True
             except FileNotFoundError as e:
                 LOGGER.error(f"load file error: {e}")
-            
+
             #if cd info is not found, get cd info from musicbrainz
             try:
                 LOGGER.info("request info from musicbrainz")
                 mb.set_useragent('muspi', '1.0', 'https://github.com/puterjam/muspi')
-                _cd_info = mb.get_releases_by_discid("-",toc=self.disc['toc'], includes=["recordings", "artists"], cdstubs=False)
+                _cd_info = mb.get_releases_by_discid(self.disc.id, includes=["recordings", "artists"], cdstubs=False)
 
-                import os
                 os.makedirs("config/cd", exist_ok=True)
                 _cd_info = json.dumps(_cd_info)
-                with open(f"config/cd/{self.disc['id']}.json", "w") as f:
+                with open(f"config/cd/{self.disc.id}.json", "w") as f:
                     f.write(_cd_info)
-                
+
                 self._fix_info(json.loads(_cd_info))
             except mb.ResponseError as e:
                 LOGGER.error(f"request from musicbrainz error: {e}")
-            
+
             return True
 
         except Exception as e:
@@ -486,37 +513,57 @@ class CD:
     def _no_disc(self):
         self._is_cd_inserted = False
         self.read_status = "nodisc"
+        # Reset status after a delay to allow retry
         threading.Timer(
             15,
-            lambda: self.reset()
+            lambda: self.reset() if self.read_status == "nodisc" else None
         ).start()
 
     def _fix_info(self, cd_info):
         self._cd_info = cd_info
 
-        for release in self._cd_info['release-list']:
-            artist = release['artist-credit-phrase']
-            album = release['title']
-            medium_list = release['medium-list']
-            medium_count = release['medium-count']
-            LOGGER.info(f"artist: {artist}, album: {album}")
+        # Handle response from get_releases_by_discid
+        if 'disc' in cd_info and 'release-list' in cd_info['disc']:
+            release = cd_info['disc']['release-list'][0]
+            self.artist = release.get('artist-credit-phrase', 'Unknown Artist')
+            self.album = release.get('title', 'Unknown Album')
 
-            for disc_count in range(medium_count):
-                count = disc_count - 1
-                if medium_list[count]["format"] == "CD" and len(medium_list[count]['disc-list']) > 0:
-                    offset = ' '.join(str(x) for x in medium_list[count]['disc-list'][0]['offset-list'])
+            medium_list = release.get('medium-list', [])
+            for medium in medium_list:
+                if 'disc-list' in medium:
+                    for disc in medium['disc-list']:
+                        if disc['id'] == self.disc.id:
+                            self.track_length = medium['track-count']
+                            self.tracks = [[track['recording']['title'],
+                                          track['recording']['artist-credit'][0]["artist"]["name"]]
+                                          for track in medium['track-list']]
+                            LOGGER.info(f"find cd info: {self.artist} - {self.album}")
+                            return True
 
-                    if offset in self.disc['toc']:
-                        LOGGER.info(f"find cd info: {offset}")
-                        # self.disc['toc'] = self.disc['toc'].replace(offset, '')
-                        self.artist = artist
-                        self.album = album
-                        self.track_length = medium_list[count]['track-count']
-                        self.tracks = [[track['recording']['title'], track['recording']['artist-credit'][0]["artist"]["name"]]
-                                        for track in medium_list[count]['track-list']]
-                        
-                        return True #use cd info
-                    
+        # Fallback: try old format for cached files
+        if 'release-list' in cd_info:
+            for release in cd_info['release-list']:
+                artist = release['artist-credit-phrase']
+                album = release['title']
+                medium_list = release['medium-list']
+                medium_count = release['medium-count']
+                LOGGER.info(f"artist: {artist}, album: {album}")
+
+                for disc_count in range(medium_count):
+                    count = disc_count - 1
+                    if medium_list[count]["format"] == "CD" and len(medium_list[count]['disc-list']) > 0:
+                        offset = ' '.join(str(x) for x in medium_list[count]['disc-list'][0]['offset-list'])
+
+                        if offset in self.disc.toc:
+                            LOGGER.info(f"find cd info: {offset}")
+                            self.artist = artist
+                            self.album = album
+                            self.track_length = medium_list[count]['track-count']
+                            self.tracks = [[track['recording']['title'], track['recording']['artist-credit'][0]["artist"]["name"]]
+                                            for track in medium_list[count]['track-list']]
+
+                            return True #use cd info
+
         return False #use unknown info
 
 # if __name__ == "__main__":

@@ -21,9 +21,11 @@
 
         "action": {
             "_comment": "功能操作按键",
-            "select": ["KEY_ENTER", "KEY_KP1"],
-            "cancel": ["KEY_ESC", "KEY_KP2"],
-            "menu": ["KEY_FORWARD", "KEY_M"]
+            "select": ["KEY_ENTER"],
+            "cancel": ["KEY_SPACE"],
+            "next_screen": ["KEY_PAGEDOWN"],
+            "previous_screen": ["KEY_PAGEUP"],
+            "menu": ["KEY_M"]
         },
 
         "media": {
@@ -79,7 +81,8 @@
             "KEY_LEFT",
             "KEY_RIGHT",
             "KEY_ENTER",
-            "KEY_ESC"
+            "KEY_ESC",
+            "KEY_SPACE"
         ],
         "function_keys": [
             "KEY_F1",
