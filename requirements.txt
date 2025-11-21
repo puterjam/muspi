@@ -12,6 +12,7 @@ smbus>=1.0.0  # I2C 库
 spidev>=1.0.0  # SPI 库
 smbus2>=0.4.1  # I2C 库
 watchdog>=3.0.0  # 文件监控库
+RPi.GPIO>=0.7.0  # GPIO 库
 
 # 音频与小智相关
 opuslib>=3.0.1  # Opus 音频库

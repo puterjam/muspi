@@ -55,15 +55,16 @@ def _show_welcome(
 
 
 class DisplayManager:
-    def __init__(self, disp=None):
+    def __init__(self, device=None):
         """Initialize the display manager"""
         # init display
-        if disp is None:
+        if device is None:
             LOGGER.error("display is not initialized")
             sys.exit(1)
 
-        self.disp = disp
+        self.disp = device
         self.turn_on_screen()
+        self.disp.contrast(CONTRAST)  # 128 is the default contrast value
         self.welcome()
 
         # init variables
@@ -284,8 +285,8 @@ class DisplayManager:
                         # if frame_time > 1.0 / 60.0:
                         #     frame_time = 1.0 / 60.0
 
-                    self.disp.getbuffer(self.main_screen)
-                    self.disp.ShowImage()
+                    # 使用 luma.oled 的 display() 方法直接显示图像
+                    self.disp.display(self.main_screen)
 
                 except Exception as e:
                     import traceback
@@ -309,16 +310,14 @@ class DisplayManager:
             self.cleanup(True)
 
     def welcome(self):
-        self.disp.getbuffer(
-            _show_welcome(
-                self.disp.width,
-                self.disp.height,
-                msg="Muspi",
-                logo_name="heart.png",
-                logo_size=(24, 24),
-            )
+        welcome_image = _show_welcome(
+            self.disp.width,
+            self.disp.height,
+            msg="Muspi",
+            logo_name="heart.png",
+            logo_size=(24, 24),
         )
-        self.disp.ShowImage()
+        self.disp.display(welcome_image)
 
     def reset_sleep_timer(self):
         self.sleep_count = time.time()
@@ -330,25 +329,22 @@ class DisplayManager:
     def turn_on_screen(self):
         LOGGER.info("\033[1m\033[37mTurn on screen\033[0m")
         self.reset_sleep_timer()
-        self.disp.Init()
-        self.disp.clear()
-        self.disp.set_contrast(CONTRAST)  # 128 is the default contrast value
-        self.disp.set_screen_rotation(1)  # 180 degree rotation
+        # luma.oled 在初始化时已经完成了设置，这里只需要打开显示
+        self.disp.show()  # 打开显示（0xAF命令）
         self.sleep = False
 
     def turn_off_screen(self):
         if not self.sleep:
             LOGGER.info("\033[1m\033[37mTurn off screen\033[0m")
-            # self.cleanup(reset=True)
-            self.disp.command(0xAE)
-            self.disp.reset()
+            # 关闭显示（0xAE命令）
+            self.disp.hide()
             self.sleep = True
 
     def cleanup(self, reset=True):
+        # 清空显示
         self.disp.clear()
         if not reset:
-            self.disp.getbuffer(_show_welcome(self.disp.width, self.disp.height))
-            self.disp.ShowImage()
-        else:
-            self.disp.ShowImage()
-            self.disp.reset()
+            # 显示欢迎屏幕
+            welcome_image = _show_welcome(self.disp.width, self.disp.height)
+            self.disp.display(welcome_image)
+        # luma.oled 的 clear() 方法已经包含了清空和显示，不需要额外的 reset

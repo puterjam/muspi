@@ -37,8 +37,8 @@
 #           '~ .~~~. ~'      Created by PuterJam               
 #               '~'        
 
-# add oled driver
-from drive import SSD1305
+# add oled driver (luma.oled based)
+from drive.luma.ssd1305 import ssd1305
 
 # add Display Manager
 from screen.manager import DisplayManager
@@ -48,8 +48,10 @@ from screen.plugin import PluginManager
 
 
 def main():
+    device = ssd1305(rotate=2)
+    
     # init manager
-    manager = DisplayManager(disp=SSD1305.SSD1305())
+    manager = DisplayManager(device=device)
 
     # create plugin manager
     plugin = PluginManager(manager)
