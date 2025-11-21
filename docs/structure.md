@@ -36,7 +36,7 @@ muspi/
 ├── config/              # 配置文件
 │   ├── keymap.json     # 按键配置
 │   └── plugins.json    # 插件配置
-├── example/             # 示例代码
+├── example/             # 模块测试代码
 │   ├── input_test.py   # 输入测试
 │   └── py-xiaozhi.py   # 小智 AI 示例
 ├── requirements.txt     # Python 依赖
