@@ -2,18 +2,7 @@
 
 > Muspi Entertainment with AI Agent - 基于树莓派的智能音乐播放器
 
-```
-          .~~.   .~~.
-         '. \ ' ' / .'
-          .~ .~~~..~.          __  ___                     _
-         : .~.'~'.~. :        /  |/  /__  __ _____ ____   (_)
-        ~ (   ) (   ) ~      / /|_/ // / / // ___// __ \ / /
-       ( : '~'.~.'~' : )    / /  / // /_/ /(__  )/ /_/ // /
-        ~ .~ (   ) ~. ~    /_/  /_/ \__,_//____// .___//_/
-         (  : '~' :  )                         /_/
-          '~ .~~~. ~'      Created by PuterJam
-              '~'
-```
+![Muspi](https://i.imgur.com/qFaw8tK.jpeg)
 
 ## 项目简介
 
@@ -38,19 +27,28 @@ Muspi 是一个运行在树莓派上的智能音乐娱乐系统，集成了多�
 
 ## 硬件要求
 
-- 树莓派（支持 GPIO、SPI）
-- SSD1305 OLED 显示屏
-- 输入设备（键盘/按键/蓝牙）
-- 可选：CD 驱动器
-- 可选：音频输出设备（用于 RoonBridge）
+### 基本硬件清单
+
+**必需硬件**：
+- **树莓派**：树莓派 3B+ 或更高版本（推荐树莓派 4/5）
+- **显示屏**：[2.23inch OLED HAT](https://www.waveshare.net/shop/2.23inch-OLED-HAT.htm)（SSD1305 驱动）
+- **输入设备**：键盘/按键（手柄未测试）
+- **音频输出**：
+  - 外接音响（3.5mm/HDMI/蓝牙）
+  - 或连接 DAC + 功放 + 喇叭
+- **USB 麦克风**：用于小智语音助手
+
+**可选硬件**：
+- **DAC 音频扩展板**：获得更好的音质
+- **CD 驱动器**：用于 CD 播放功能
+- **蓝牙适配器**：用于蓝牙音频输出或手柄连接
 
 ## 系统要求
 
-- 树莓派 2 或更高版本（推荐树莓派 4）
-- 树莓派 OS 64位（Debian Trixie 或更高版本）
-- Python 3.11+（已测试 Python 3.13）
-- 启用的 SPI 接口
-- WiFi 或有线网络连接
+- **操作系统**：树莓派 OS 64位 Lite（Debian Bookworm 或更高版本）
+- **Python 版本**：Python 3.11+（已测试 Python 3.13）
+- **硬件接口**：启用 SPI 接口
+- **网络连接**：WiFi 或有线网络（用于语音助手、Roon、AirPlay）
 
 ## 安装步骤
 
@@ -101,134 +99,34 @@ python main.py
 
 ## 📚 文档导航
 
+### 开发文档
 - **[插件开发规范](docs/plugins.md)** - 插件开发完整指南、API 参考和示例
-- **[按键映射配置](docs/keymap.md)** - 按键配置说明和编程接口
+- **[按键映射配置](docs/keymap.md)** - 键盘/手柄按键配置说明和编程接口
+- **[项目结构说明](docs/structure.md)** - 目录结构、核心模块和开发流程
 
-## 项目结构
-
-```
-muspi/
-├── main.py              # 主程序入口
-├── drive/               # 硬件驱动
-│   ├── SSD1305.py      # OLED 显示屏驱动
-│   └── config.py       # 硬件配置
-├── screen/              # 显示管理
-│   ├── manager.py      # 显示管理器
-│   ├── plugin.py       # 插件管理器
-│   └── plugins/        # 显示插件
-├── until/               # 工具模块
-│   ├── device/         # 设备管理
-│   ├── keymap.py       # 按键映射
-│   └── log.py          # 日志工具
-├── docs/                # 文档
-│   ├── plugins.md      # 插件开发规范
-│   └── keymap.md       # 按键映射配置
-├── config/              # 配置文件
-│   ├── keymap.json     # 按键配置
-│   └── plugins.json    # 插件配置
-├── requirements.txt     # Python 依赖
-├── install.sh           # 安装脚本
-└── install_service.sh   # 服务安装脚本
-```
+### 使用文档
+- **[更新日志](docs/changelog.md)** - 版本更新记录和未来计划
+- **[故障排除](docs/troubleshooting.md)** - 常见问题解决方案和调试方法
 
 ## 插件开发
 
 Muspi 支持插件化的显示系统，你可以开发自己的插件来扩展功能。
 
-### 快速开始
+插件特性：🎨 绘图 API、⌨️ 按键处理、🔄 生命周期管理、📊 帧率控制
 
-1. **查看插件开发文档**: [docs/plugins.md](docs/plugins.md)
-2. **参考示例插件**:
-   - 简单时钟: [screen/plugins/clock.py](screen/plugins/clock.py)
-   - 游戏示例: [screen/plugins/life.py](screen/plugins/life.py)
-   - CD 播放器: [screen/plugins/cdplayer.py](screen/plugins/cdplayer.py)
-
-### 插件特性
-
-- 🎨 基于 PIL 的绘图 API
-- ⌨️ 完整的按键事件处理
-- 🔄 灵活的生命周期管理
-- 📊 可调节的帧率控制
-- 🎯 自动激活/停用机制
-
-详细文档请查看 **[插件开发规范](docs/plugins.md)**
+**快速开始**：查看 [插件开发规范](docs/plugins.md) 和示例插件代码。
 
 ## 更新日志
 
 ### 最近更新 (2025-11-21)
 
-- ✅ **CD 播放器优化**
-  - 修复 mpv socket 连接问题（避免 socat 连接拒绝错误）
-  - 修复重复播放问题（防止在 CD 读取时重复启动）
-  - 修复长时间空闲后 CD 重载问题
-  - 改进播放状态管理和错误处理
-  - 添加 ALSA 音频输出支持
+- ✅ CD 播放器优化（修复 socket 连接、播放状态管理）
+- ✅ 音量条显示优化（Overlay 层帧率修复）
+- ✅ 键盘映射系统（配置文件分离、自定义映射）
+- ✅ 安装脚本改进（精简/完整模式、服务安装）
+- ✅ 文档完善（插件开发、按键配置、故障排除）
 
-- ✅ **音量条显示优化**
-  - 改进音量条的视觉表现
-  - 修复 Overlay 层帧率问题
-
-- ✅ **键盘映射系统**
-  - 分离 keymap 配置到独立文件 (`config/keymap.json`)
-  - 支持自定义按键映射
-  - 改进输入设备热插拔支持
-
-### 历史更新
-
-- ✅ **新增 AirPlay 2 支持**（通过 shairport-sync）
-- ✅ **WiFi 防掉线优化**（自动禁用省电模式 + 连接保活）
-- ✅ **完善安装脚本**（自动编译依赖、配置服务）
-- ✅ 迁移到 Python 3.13
-- ✅ 用 `watchdog` 替换 `pyinotify`（解决 asyncore 兼容性问题）
-- ✅ 添加 Overlay 层支持
-- ✅ 使用 cd-discid 替代 libdiscid（性能优化）
-- ✅ 优化 Roon 和小智的重连机制
-- ✅ 兼容 TTS 的 stop 状态
-
-详细更新历史请查看 `git log`。
-
-## 故障排除
-
-### shairport-sync 相关问题
-
-**检查 shairport-sync 状态：**
-```bash
-sudo systemctl status shairport-sync
-```
-
-**重启 shairport-sync：**
-```bash
-sudo systemctl restart shairport-sync
-```
-
-**查看 shairport-sync 日志：**
-```bash
-journalctl -u shairport-sync -f
-```
-
-**测试 AirPlay 连接：**
-在 iOS 设备上打开控制中心，点击 AirPlay 图标，应该能看到你的树莓派设备名称。
-
-**配置音频输出：**
-编辑配置文件 `/etc/shairport-sync.conf`，根据实际硬件调整音频输出设置。
-
-### RoonBridge 连接问题
-
-**手动安装 RoonBridge（64位系统）：**
-```bash
-curl -O https://download.roonlabs.net/builds/roonbridge-installer-linuxarmv8.sh
-chmod +x roonbridge-installer-linuxarmv8.sh
-sudo ./roonbridge-installer-linuxarmv8.sh
-```
-
-**32位系统请使用：**
-```bash
-curl -O https://download.roonlabs.net/builds/roonbridge-installer-linuxarmv7hf.sh
-chmod +x roonbridge-installer-linuxarmv7hf.sh
-sudo ./roonbridge-installer-linuxarmv7hf.sh
-```
-
-确保树莓派和 Roon Core 在同一网络中，并在 Roon 应用的 Settings → Audio 中可以看到 RoonBridge 设备。
+更多更新历史请查看 [更新日志](docs/changelog.md)
 
 ## 许可证
 
