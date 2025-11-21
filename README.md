@@ -1,6 +1,6 @@
-# Muspi 🎵
+# Muspi - A Music Entertainment with AI Agent🎵
 
-> Muspi Entertainment with AI Agent - 基于树莓派的智能音乐播放器
+> 基于树莓派的智能音乐播放器
 
 ![Muspi](https://i.imgur.com/qFaw8tK.jpeg)
 
