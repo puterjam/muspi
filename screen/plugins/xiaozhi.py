@@ -1,25 +1,28 @@
+# 基础导入（快速）
 import json
 import time
 import requests
 import paho.mqtt.client as mqtt
 import threading
 import queue
-import opuslib
 import socket
-import numpy as np
 import subprocess
 import re
 
-from scipy import signal
-from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
-from cryptography.hazmat.backends import default_backend
 from screen.base import DisplayPlugin
 from until.log import LOGGER
 from until.keymap import get_keymap
 
 from ui.emotion import RobotEmotion
 from ui.textarea import TextArea
-from ui.animation import Animation,Operator
+from ui.animation import Animation, Operator
+
+# 延迟导入（慢速库，只在使用时导入）
+# 这些库将在需要时才导入，避免阻塞启动
+# - numpy: 音频处理时导入
+# - scipy.signal: 重采样时导入
+# - cryptography: 加密时导入
+# - opuslib: Opus 编解码时导入
 
 
 OTA_VERSION_URL = 'https://api.tenclass.net/xiaozhi/ota/'
@@ -62,6 +65,10 @@ def get_mac_address():
 
 def resample_audio(data, original_rate, target_rate):
     """将音频数据从原始采样率重采样到目标采样率"""
+    # 延迟导入（只在使用时导入，避免阻塞启动）
+    import numpy as np
+    from scipy import signal
+
     # 将字节数据转换为 numpy 数组
     samples = np.frombuffer(data, dtype=np.int16)
     # 计算重采样后的样本数
@@ -72,11 +79,18 @@ def resample_audio(data, original_rate, target_rate):
     return resampled.astype(np.int16).tobytes()
 
 def aes_ctr_encrypt(key, nonce, plaintext):
+    # 延迟导入（只在使用时导入，避免阻塞启动）
+    from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+    from cryptography.hazmat.backends import default_backend
+
     cipher = Cipher(algorithms.AES(key), modes.CTR(nonce), backend=default_backend())
     encryptor = cipher.encryptor()
     return encryptor.update(plaintext) + encryptor.finalize()
 
 def aes_ctr_decrypt(key, nonce, ciphertext):
+    from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
+    from cryptography.hazmat.backends import default_backend
+
     cipher = Cipher(algorithms.AES(key), modes.CTR(nonce), backend=default_backend())
     decryptor = cipher.decryptor()
     plaintext = decryptor.update(ciphertext) + decryptor.finalize()
@@ -87,6 +101,7 @@ class xiaozhi(DisplayPlugin):
         self.name = "xiaozhi"
         super().__init__(manager, width, height)
 
+        LOGGER.info("xiaozhi init")
         self.mqtt_info = {}
         self._receive_msg = {'session_id': None}
         self.is_listening = False
@@ -121,7 +136,10 @@ class xiaozhi(DisplayPlugin):
         # self.audio = pyaudio.PyAudio()
         self.send_audio_thread = threading.Thread()
         self.recv_audio_thread = threading.Thread()
-        self._get_ota_version()
+        
+        self.ota_thread = threading.Thread(target=self._get_ota_version, daemon=True)
+        self.ota_thread.start()
+        LOGGER.info("OTA version fetch started in background")
 
     def _get_ota_version(self):
         header = {
@@ -269,11 +287,13 @@ class xiaozhi(DisplayPlugin):
             self._push_mqtt_msg({**MESSAGE.STOP_LISTEN, 'session_id': self._receive_msg['session_id']})
 
     def _send_audio(self):
+        import opuslib
+
         key = self._receive_msg['udp']['key']
         nonce = self._receive_msg['udp']['nonce']
         server_ip = self._receive_msg['udp']['server']
         server_port = self._receive_msg['udp']['port']
-        
+
         # 初始化Opus编码器
         encoder = opuslib.Encoder(TARGET_RATE, 1, opuslib.APPLICATION_AUDIO)
         
@@ -327,6 +347,8 @@ class xiaozhi(DisplayPlugin):
     
     def _recv_audio(self):
         import threading
+        import opuslib
+
         key = self._receive_msg['udp']['key']
         # nonce = self._receive_msg['udp']['nonce']
         sample_rate = self._receive_msg['audio_params']['sample_rate']
@@ -334,7 +356,7 @@ class xiaozhi(DisplayPlugin):
         frame_num = int(sample_rate * (frame_duration / 1000 ))
 
         # LOGGER.debug(f"recv audio: sample_rate -> {sample_rate}, frame_duration -> {frame_duration}, frame_num -> {frame_num}")
-        
+
         # 初始化Opus解码器
         decoder = opuslib.Decoder(fs=sample_rate, channels=1)
         # 使用更优化的aplay参数
@@ -442,8 +464,8 @@ class xiaozhi(DisplayPlugin):
         self.anim.start('robot_offset_x',obj=self,attr='robot_offset_x',target=0,operator=Operator.ease_out_bounce)
         self.anim.start('chatbox_offset_x',obj=self,attr='chatbox_offset_x',target=0,operator=Operator.ease_out_bounce)
    
-    def update(self):
-        self.clear()
+    def render(self):
+        draw = self.canvas
         current_time = time.time()
         
         if current_time - self.sleep_time > SLEEP_TIMEOUT:
@@ -456,12 +478,12 @@ class xiaozhi(DisplayPlugin):
         # 计算居中位置
         x = (self.width - robot.width) // 2 + self.robot_offset_x
         y = (self.height - robot.height) // 2
-        self.draw.bitmap((x, y), robot, fill=255)
+        draw.bitmap((x, y), robot, fill=255)
         
         chatbox = self.text_area.render()
         x = self.width + round(self.chatbox_offset_x)  # 放在机器人右边
         y = (self.height - chatbox.height) // 2
-        self.draw.bitmap((x, y), chatbox, fill=255)
+        draw.bitmap((x, y), chatbox, fill=255)
         
     def _wakeup(self):
         if self.is_sleeping:

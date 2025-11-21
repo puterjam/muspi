@@ -32,9 +32,8 @@ class life(DisplayPlugin):
                 count += self.grid[ny][nx]
         return count
     
-    def update(self):
-        # 清空画布
-        self.clear()
+    def render(self):
+        draw = self.canvas
         
         # 更新网格状态
         new_grid = [[0 for _ in range(self.grid_width)] for _ in range(self.grid_height)]
@@ -55,7 +54,7 @@ class life(DisplayPlugin):
         for y in range(self.grid_height):
             for x in range(self.grid_width):
                 if self.grid[y][x] == 1:
-                    self.draw.rectangle([
+                    draw.rectangle([
                         x * self.cell_size,
                         y * self.cell_size,
                         (x + 1) * self.cell_size - 1,

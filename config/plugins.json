@@ -20,7 +20,7 @@
         },
         {
             "name": "life",
-            "enabled": true,
+            "enabled": false,
             "auto_hide": false,
             "config": {}
         },
@@ -38,6 +38,12 @@
         },
         {
             "name": "cdplayer",
+            "enabled": true,
+            "auto_hide": false,
+            "config": {}
+        },
+        {
+            "name": "matrix",
             "enabled": true,
             "auto_hide": false,
             "config": {}

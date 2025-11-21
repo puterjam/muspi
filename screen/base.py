@@ -35,9 +35,13 @@ class DisplayPlugin(ABC):
 
         LOGGER.info(f"[\033[1m{self.name}\033[0m] initialized.")
 
-    @abstractmethod
     def update(self):
-        """update the display content"""
+        self.clear() #default clear the canvas
+        self.render()
+    
+    @abstractmethod
+    def render(self):
+        """render canvas in display"""
         pass
     
     # @abstractmethod
@@ -80,3 +84,8 @@ class DisplayPlugin(ABC):
     def clear(self):
         """clear the display"""
         self.draw.rectangle((0, 0, self.width, self.height), fill=0) 
+    
+    @property
+    def canvas(self):
+        """get the canvas"""
+        return self.draw

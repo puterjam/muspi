@@ -10,8 +10,8 @@ class clock(DisplayPlugin):
         self.last_blink_time = 0
         self.show_colon = True
 
-    def update(self):
-        self.clear()
+    def render(self):
+        draw = self.canvas
         current_time = time.time()
 
         # handle the colon blinking
@@ -26,13 +26,13 @@ class clock(DisplayPlugin):
             time_str = time.strftime("%H %M %S")
 
         draw_scroll_text(
-            self.draw, time_str, (2, 12), width=128, font=self.font16, align="center"
+            draw, time_str, (2, 12), width=128, font=self.font16, align="center"
         )
 
         # display date (small font, top center)
         current_date = time.strftime("%Y年%m月%d日")
         draw_scroll_text(
-            self.draw,
+            draw,
             "" + current_date,
             (0, 2),
             width=128,

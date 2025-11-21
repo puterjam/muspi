@@ -301,40 +301,41 @@ class dino(DisplayPlugin):
             self.game_over_time = current_time  # 记录游戏结束时间
 
     def draw_game(self):
-        self.draw.rectangle((0, 0, WIDTH, HEIGHT), fill=0)
+        draw = self.canvas
+        draw.rectangle((0, 0, WIDTH, HEIGHT), fill=0)
         
         # 绘制地面
-        self.draw.line((0, GROUND_Y, WIDTH, GROUND_Y), fill=255)
+        draw.line((0, GROUND_Y, WIDTH, GROUND_Y), fill=255)
         
         # 绘制恐龙
-        self.dino.draw(self.draw)
+        self.dino.draw(draw)
         
         # 绘制障碍物
         for obstacle in self.obstacles:
-            obstacle.draw(self.draw)
+            obstacle.draw(draw)
         
         if self.player != "AI":
             # 绘制分数（右对齐）
             score_text = str(self.score)
-            score_bbox = self.draw.textbbox((0, 0), score_text, font=self.font8)
+            score_bbox = draw.textbbox((0, 0), score_text, font=self.font8)
             score_width = score_bbox[2] - score_bbox[0]
-            self.draw.text((WIDTH - score_width - 4, 2), score_text, fill=255, font=self.font8)
+            draw.text((WIDTH - score_width - 4, 2), score_text, fill=255, font=self.font8)
         
         if self.player == "AI":
             # 计算 GAME OVER 文本的边界框
             game_over_text = "press to start"
-            text_bbox = self.draw.textbbox((0, 0), game_over_text, font=self.font8)
+            text_bbox = draw.textbbox((0, 0), game_over_text, font=self.font8)
             text_width = text_bbox[2] - text_bbox[0]
             text_height = text_bbox[3] - text_bbox[1]
             # 绘制黑色文本
             text_x = WIDTH//2 - text_width//2+8
             text_y = HEIGHT//2 - text_height//2-4
-            self.draw.text((text_x, text_y), game_over_text, fill=255, font=self.font8)
+            draw.text((text_x, text_y), game_over_text, fill=255, font=self.font8)
             
         if self.game_over:
             # 计算 GAME OVER 文本的边界框
             game_over_text = "GAME OVER"
-            text_bbox = self.draw.textbbox((0, 0), game_over_text, font=self.font8)
+            text_bbox = draw.textbbox((0, 0), game_over_text, font=self.font8)
             text_width = text_bbox[2] - text_bbox[0]
             text_height = text_bbox[3] - text_bbox[1]
             
@@ -344,21 +345,20 @@ class dino(DisplayPlugin):
             box_top = HEIGHT//2 - text_height//2 - padding - 4
             box_right = WIDTH//2 + text_width//2 + padding + 2
             box_bottom = HEIGHT//2 + text_height//2 + padding - 8
-            self.draw.rectangle((box_left, box_top, box_right, box_bottom), fill=0)
+            draw.rectangle((box_left, box_top, box_right, box_bottom), fill=0)
             
             # 绘制黑色文本
             text_x = WIDTH//2 - text_width//2 + 4
             text_y = HEIGHT//2 - text_height//2 - 8
-            self.draw.text((text_x, text_y), game_over_text, fill=255, font=self.font8)
+            draw.text((text_x, text_y), game_over_text, fill=255, font=self.font8)
             
             # 显示重启倒计时
             remaining = 5 - int(time.time() - self.game_over_time)
             if remaining > 0:
-                self.draw.rectangle((WIDTH//2-1, HEIGHT//2+2, WIDTH//2+10, HEIGHT//2+10), fill=0)
-                self.draw.text((WIDTH//2+1, HEIGHT//2), f"{remaining}s", fill=255, font=self.font8)
+                draw.rectangle((WIDTH//2-1, HEIGHT//2+2, WIDTH//2+10, HEIGHT//2+10), fill=0)
+                draw.text((WIDTH//2+1, HEIGHT//2), f"{remaining}s", fill=255, font=self.font8)
                 
-    def update(self):
-        self.clear()
+    def render(self):
         self.update_object()
         self.draw_game()
         

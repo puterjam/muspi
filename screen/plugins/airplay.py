@@ -115,12 +115,13 @@ class airplay(DisplayPlugin):
         except queue.Empty:
             pass
     
-    def update(self):
-        self.clear()
+    def render(self):
+        # get the canvas
+        draw = self.canvas
         
         # initialize the icon drawer
         if self.icon_drawer is None:
-            self.icon_drawer = IconDrawer(self.draw)
+            self.icon_drawer = IconDrawer(draw)
         
         if self.stream_volume is None:
             volume = 0.5
@@ -133,21 +134,21 @@ class airplay(DisplayPlugin):
         # draw the scrolling text
         offset = 28
         if self.current_title and self.current_artist:
-            draw_scroll_text(self.draw, self.current_title, (offset, 10), width=100, font=self.font10, align="center")
-            draw_scroll_text(self.draw, self.current_artist + " - " + self.current_album, (offset, 24), width=100, font=self.font8, align="center")
-            #draw_scroll_text(self.draw, "♪" + self.client_name, (58+offset, 0), font=self.font_status)
-            draw_scroll_text(self.draw, "♪" + self.client_name, (6+offset, 0), width=90, font=self.font_status, align="center")
-            draw_scroll_text(self.draw, "A", (95+offset, 0), font=self.font_status)
+            draw_scroll_text(draw, self.current_title, (offset, 10), width=100, font=self.font10, align="center")
+            draw_scroll_text(draw, self.current_artist + " - " + self.current_album, (offset, 24), width=100, font=self.font8, align="center")
+            #draw_scroll_text(draw, "♪" + self.client_name, (58+offset, 0), font=self.font_status)
+            draw_scroll_text(draw, "♪" + self.client_name, (6+offset, 0), width=90, font=self.font_status, align="center")
+            draw_scroll_text(draw, "A", (95+offset, 0), font=self.font_status)
 
         # draw the VU table
         if self.play_state == "play":
-            draw_vu(self.draw, volume_level=volume) 
+            draw_vu(draw, volume_level=volume) 
             if self.manager.sleep:
                 self.manager.turn_on_screen()
-            draw_scroll_text(self.draw, "⏵", (offset, 0), font=self.font_status)
+            draw_scroll_text(draw, "⏵", (offset, 0), font=self.font_status)
         else:
-            draw_vu(self.draw, volume_level=0.0)
-            draw_scroll_text(self.draw, "⏸", (offset, 0), font=self.font_status)
+            draw_vu(draw, volume_level=0.0)
+            draw_scroll_text(draw, "⏸", (offset, 0), font=self.font_status)
         
         # draw the volume wave icon
         # self.icon_drawer.draw_volume_wave(x=86, y=0, level=volume)

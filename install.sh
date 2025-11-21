@@ -31,7 +31,7 @@ generate_plugin_config() {
     echo -e "${BLUE}[配置] 生成插件配置文件...${NC}"
 
     local config_file="config/plugins.json"
-    local example_file="config/plugins_example.json"
+    local example_file="config/plugins.example.json"
 
     if [ ! -f "$example_file" ]; then
         echo -e "${RED}错误: 未找到示例配置文件 $example_file${NC}"

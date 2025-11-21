@@ -31,54 +31,55 @@ class cdplayer(DisplayPlugin):
         self._is_in_longpress = False
         self.keymap = get_keymap()
 
-    def update(self):
-            self.clear()
-            
-            # initialize the icon drawer
-            if self.icon_drawer is None:
-                self.icon_drawer = IconDrawer(self.draw)
-    
-            # draw the scrolling text
-            offset = 28
-            if self.media_player.is_running:
-                if self.media_player.is_player_ready:
-                    draw_scroll_text(self.draw, self.media_player.current_title, (offset, 10), width=100, font=self.font10, align="center")
-                    draw_scroll_text(self.draw, self.media_player.current_artist + " - " + self.media_player.current_album, (offset, 24), width=100, font=self.font8, align="center")
-                    draw_scroll_text(self.draw, f"♪{self.media_player.current_track}/{self.media_player.current_track_length}", (offset, 0), width=100, font=self.font_status, align="center")
-                    # draw_scroll_text(self.draw, "♪" + self.client_name, (6+offset, 0), width=90, font=self.font_status, align="center")
-                else:
-                    draw_scroll_text(self.draw, "即将开始播放.", (offset, 10), width=100, font=self.font10, align="center")
+    def render(self):    
+        # get the canvas
+        draw = self.canvas   
+                
+        # initialize the icon drawer
+        if self.icon_drawer is None:
+            self.icon_drawer = IconDrawer(draw)
+
+        # draw the scrolling text
+        offset = 28
+        if self.media_player.is_running:
+            if self.media_player.is_player_ready:
+                draw_scroll_text(draw, self.media_player.current_title, (offset, 10), width=100, font=self.font10, align="center")
+                draw_scroll_text(draw, self.media_player.current_artist + " - " + self.media_player.current_album, (offset, 24), width=100, font=self.font8, align="center")
+                draw_scroll_text(draw, f"♪{self.media_player.current_track}/{self.media_player.current_track_length}", (offset, 0), width=100, font=self.font_status, align="center")
+                # draw_scroll_text(draw, "♪" + self.client_name, (6+offset, 0), width=90, font=self.font_status, align="center")
             else:
-                if self.media_player.cd.read_status == "reading":
-                    draw_scroll_text(self.draw, "CD读取中...", (offset, 10), width=100, font=self.font10, align="center")
-                elif self.media_player.cd.read_status == "nodisc":
-                    draw_scroll_text(self.draw, "放入CD开始播放", (offset, 10), width=100, font=self.font10, align="center")
-                elif self.media_player.cd.read_status == "idle":
-                    draw_scroll_text(self.draw, "Muspi CD Player", (offset, 10), width=100, font=self.font10, align="center")
-                elif self.media_player.cd.read_status == "readed":
-                    draw_scroll_text(self.draw, "读取曲目信息...", (offset, 10), width=100, font=self.font10, align="center")
-                elif self.media_player.cd.read_status == "ejecting":
-                    draw_scroll_text(self.draw, "CD弹出中...", (offset, 10), width=100, font=self.font10, align="center")
-                else:
-                    draw_scroll_text(self.draw, self.media_player.cd.read_status, (offset, 10), width=100, font=self.font10, align="center")
-
-            draw_scroll_text(self.draw, "CD", (89+offset, 0), font=self.font_status)
-
-            # draw the VU table
-            if self.media_player.play_state == "playing" and self.media_player.is_player_ready:
-                draw_vu(self.draw, volume_level=0.5) 
-                if self.manager.sleep:
-                    self.manager.turn_on_screen()
-                draw_scroll_text(self.draw, "⏵", (offset, 0), font=self.font_status)
-            elif self.media_player.play_state == "pause":
-                draw_vu(self.draw, volume_level=0.0)
-                draw_scroll_text(self.draw, "⏸", (offset, 0), font=self.font_status)
+                draw_scroll_text(draw, "即将开始播放.", (offset, 10), width=100, font=self.font10, align="center")
+        else:
+            if self.media_player.cd.read_status == "reading":
+                draw_scroll_text(draw, "CD读取中...", (offset, 10), width=100, font=self.font10, align="center")
+            elif self.media_player.cd.read_status == "nodisc":
+                draw_scroll_text(draw, "放入CD开始播放", (offset, 10), width=100, font=self.font10, align="center")
+            elif self.media_player.cd.read_status == "idle":
+                draw_scroll_text(draw, "Muspi CD Player", (offset, 10), width=100, font=self.font10, align="center")
+            elif self.media_player.cd.read_status == "readed":
+                draw_scroll_text(draw, "读取曲目信息...", (offset, 10), width=100, font=self.font10, align="center")
+            elif self.media_player.cd.read_status == "ejecting":
+                draw_scroll_text(draw, "CD弹出中...", (offset, 10), width=100, font=self.font10, align="center")
             else:
-                draw_vu(self.draw, volume_level=0.0)
-                draw_scroll_text(self.draw, "⏹", (offset, 0), font=self.font_status)
+                draw_scroll_text(draw, self.media_player.cd.read_status, (offset, 10), width=100, font=self.font10, align="center")
 
-            # draw the volume wave icon
-            # self.icon_drawer.draw_volume_wave(x=86, y=0, level=volume)
+        draw_scroll_text(draw, "CD", (89+offset, 0), font=self.font_status)
+
+        # draw the VU table
+        if self.media_player.play_state == "playing" and self.media_player.is_player_ready:
+            draw_vu(draw, volume_level=0.5) 
+            if self.manager.sleep:
+                self.manager.turn_on_screen()
+            draw_scroll_text(draw, "⏵", (offset, 0), font=self.font_status)
+        elif self.media_player.play_state == "pause":
+            draw_vu(draw, volume_level=0.0)
+            draw_scroll_text(draw, "⏸", (offset, 0), font=self.font_status)
+        else:
+            draw_vu(draw, volume_level=0.0)
+            draw_scroll_text(draw, "⏹", (offset, 0), font=self.font_status)
+
+        # draw the volume wave icon
+        # self.icon_drawer.draw_volume_wave(x=86, y=0, level=volume)
                 
     def is_playing(self):
         return self.media_player.play_state == "playing"
