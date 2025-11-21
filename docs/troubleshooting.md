@@ -55,6 +55,33 @@ alsa = {
 aplay -l
 ```
 
+### 问题：AirPlay 音量过小
+
+**解决方法：**
+
+编辑 shairport-sync 配置文件：
+```bash
+sudo nano /etc/shairport-sync.conf
+```
+
+找到 `alsa` 部分，取消 `mixer_control_name` 的注释并设置为 `"PCM"`：
+```conf
+alsa = {
+    output_device = "hw:0";
+    mixer_control_name = "PCM";  // 取消注释这行
+};
+```
+
+重启服务：
+```bash
+sudo systemctl restart shairport-sync
+```
+
+**提示：** 如果 `PCM` 不起作用，可以尝试使用 `"Master"` 或其他混音器控制名称。查看可用的控制名称：
+```bash
+amixer scontrols
+```
+
 ### 问题：编译 shairport-sync 失败
 
 **检查依赖：**
@@ -377,94 +404,6 @@ cat /etc/systemd/system/muspi.service
 
 ---
 
-## 网络连接问题
-
-### 问题：WiFi 经常断开
-
-**禁用 WiFi 省电模式：**
-```bash
-sudo iw dev wlan0 set power_save off
-```
-
-**永久禁用省电模式：**
-
-编辑 `/etc/rc.local`（在 `exit 0` 之前添加）：
-```bash
-sudo nano /etc/rc.local
-```
-添加：
-```bash
-/sbin/iw dev wlan0 set power_save off
-```
-
-**检查 WiFi 信号强度：**
-```bash
-iwconfig wlan0
-```
-
-### 问题：无法连接到小智 AI
-
-**检查网络连接：**
-```bash
-ping api.tenclass.net
-```
-
-**查看小智日志：**
-```bash
-tail -f ~/.muspi/xiaozhi.log
-```
-
-**检查 MAC 地址：**
-```bash
-ip link show wlan0 | grep ether
-```
-
----
-
-## 调试技巧
-
-### 查看实时日志
-
-```bash
-# 系统服务日志
-sudo journalctl -u muspi -f
-
-# 应用程序日志
-tail -f ~/.muspi/*.log
-```
-
-### 增加日志详细程度
-
-编辑 `until/log.py`，修改日志级别：
-```python
-logging.basicConfig(level=logging.DEBUG)  # 改为 DEBUG
-```
-
-### 性能监控
-
-```bash
-# CPU 和内存使用
-htop
-
-# 进程监控
-ps aux | grep python
-
-# 系统资源
-vmstat 1
-```
-
-### 网络调试
-
-```bash
-# 查看网络连接
-netstat -tulpn
-
-# 抓包分析
-sudo tcpdump -i wlan0 -w capture.pcap
-```
-
----
-
 ## 获取帮助
 
 如果以上方法无法解决问题，请：
@@ -478,10 +417,6 @@ sudo tcpdump -i wlan0 -w capture.pcap
    - GitHub: https://github.com/puterjam/muspi/issues
    - 提供详细的错误信息、日志和系统环境
 
-3. **社区讨论**：
-   - 在 GitHub Discussions 中寻求帮助
-   - 分享你的使用经验
-
 ## 常见错误代码
 
 | 错误 | 原因 | 解决方案 |
@@ -491,14 +426,3 @@ sudo tcpdump -i wlan0 -w capture.pcap
 | `Connection refused` | 服务未启动 | 启动相应服务 |
 | `Module not found` | 依赖未安装 | 运行 `./install.sh` |
 | `SPI device not found` | SPI 未启用 | 运行 `sudo raspi-config` 启用 SPI |
-
-## 系统环境检查清单
-
-- [ ] SPI 接口已启用
-- [ ] 用户在 `input`、`cdrom`、`audio` 组中
-- [ ] Python 3.11+ 已安装
-- [ ] 虚拟环境已创建并激活
-- [ ] 所有依赖已安装
-- [ ] 硬件连接正确
-- [ ] 配置文件正确
-- [ ] 网络连接正常
