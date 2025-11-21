@@ -262,9 +262,9 @@ class DisplayManager:
                         screen_offset = round(
                             self.anim.run("main_screen", self.disp.width)
                         )
-                        frame_time = 1.0 / 60.0
+                        framerate = 1.0 / 60.0
                     else:
-                        frame_time = self.last_active.get_frame_time()
+                        framerate = self.last_active.framerate
                         self.last_screen_image = None
 
                     # Calculate offset based on animation direction
@@ -282,8 +282,8 @@ class DisplayManager:
                     if self.overlay_manager.has_active_overlays():
                         self.main_screen = self.overlay_manager.render(self.main_screen)
                         # # 有覆盖层时保持高帧率
-                        # if frame_time > 1.0 / 60.0:
-                        #     frame_time = 1.0 / 60.0
+                        # if framerate > 1.0 / 60.0:
+                        #     framerate = 1.0 / 60.0
 
                     # 使用 luma.oled 的 display() 方法直接显示图像
                     self.disp.display(self.main_screen)
@@ -294,11 +294,11 @@ class DisplayManager:
                     LOGGER.error(f"错误堆栈: {traceback.format_exc()}")
                     # if error keep frame
                     LOGGER.error(f"error: {e}")
-                    frame_time = 0.1
+                    framerate = 0.1
 
                 elapsed = time.time() - frame_start
-                if elapsed < frame_time:
-                    time.sleep(frame_time - elapsed)
+                if elapsed < framerate:
+                    time.sleep(framerate - elapsed)
 
         except KeyboardInterrupt:
             LOGGER.warning("received keyboard interrupt, cleaning up...")

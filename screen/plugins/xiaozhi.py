@@ -37,7 +37,7 @@ TARGET_RATE = 16000
 RESAMPLE_RATIO = TARGET_RATE / DEVICE_RATE
 FRAME_SIZE = 960  # Opus 帧大小
 
-EMOTION_FRAME_TIME = 1.0 / 45.0
+EMOTION_FPS = 45.0
 SLEEP_TIMEOUT = 3 * 60 # 3 minutes for sleep
 CHATBOX_WIDTH = 62 # 聊天框宽度
 ROBOT_OFFSET_X = 34
@@ -101,7 +101,7 @@ class xiaozhi(DisplayPlugin):
         self.name = "xiaozhi"
         super().__init__(manager, width, height)
 
-        LOGGER.info("xiaozhi init")
+        self.framerate = EMOTION_FPS #set framerate to EMOTION_FPS
         self.mqtt_info = {}
         self._receive_msg = {'session_id': None}
         self.is_listening = False
@@ -537,6 +537,3 @@ class xiaozhi(DisplayPlugin):
             # if self.mqttc:
             #     self.mqttc.loop_stop()
             #     self.mqttc = None
-    
-    def get_frame_time(self):
-        return EMOTION_FRAME_TIME

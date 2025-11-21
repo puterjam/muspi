@@ -115,7 +115,7 @@ CACTUS_SPRITE_6 = [
     [0,0,1,0],
 ]
 
-GAME_FRAME_TIME = 1.0 / 25.0
+GAME_FPS = 25.0
 
 def get_dino_sprite(type):
     # 选择头部
@@ -214,7 +214,8 @@ class dino(DisplayPlugin):
     def __init__(self, manager, width, height):
         self.name = "dino"
         super().__init__(manager, width, height)
-        self.frame_time = 1.0 / 30.0  # 30fps = 33.33ms 每帧
+        self.framerate = GAME_FPS
+         # 30fps = 33.33ms 每帧
         self.keymap = get_keymap()
         self.reset_game()
         
@@ -361,9 +362,6 @@ class dino(DisplayPlugin):
     def render(self):
         self.update_object()
         self.draw_game()
-        
-    def get_frame_time(self):
-        return GAME_FRAME_TIME
 
     def key_callback(self, device_name, evt):
         # 获取全局功能按键

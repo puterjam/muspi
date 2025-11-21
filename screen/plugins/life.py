@@ -2,12 +2,13 @@ import random
 from screen.base import DisplayPlugin
 from until.keymap import get_keymap
 
-GAME_FRAME_TIME = 1 / 30
+GAME_FPS = 30.0
 
 class life(DisplayPlugin):
     def __init__(self, manager, width, height):
         self.name = "life"
         super().__init__(manager, width, height)
+        self.framerate = GAME_FPS
         self.cell_size = 2
         self.grid_width = self.width // self.cell_size
         self.grid_height = self.height // self.cell_size
@@ -61,9 +62,6 @@ class life(DisplayPlugin):
                         (y + 1) * self.cell_size - 1
                     ], fill=1)
         
-    def get_frame_time(self):
-        return GAME_FRAME_TIME
-    
     def set_active(self, active):
         super().set_active(active)
         if active:

@@ -58,6 +58,8 @@ class hello(DisplayPlugin):
         # 插件特定的状态变量（可选）
         self.message = "Hello World"
         self.counter = 0  # 示例：更新计数器
+        
+        self.framerate = 20.0 # 帧率
 
     def render(self):
         """
@@ -176,54 +178,3 @@ class hello(DisplayPlugin):
         # Hello World 插件不使用 auto_hide 功能
         # 返回 None 或不实现此方法
         return None
-
-    def get_frame_time(self):
-        """
-        获取帧更新时间（可选实现）
-
-        返回:
-            float: 帧间隔时间（秒），默认为 1/8 = 0.125 秒（8 FPS）
-
-        用途:
-            控制 update() 方法的调用频率。
-
-        示例：
-            - 时钟显示：return 0.125 (8 FPS，省电)
-            - 动画效果：return 0.033 (30 FPS，流畅)
-            - 游戏：return 0.016 (60 FPS，高响应)
-            - 静态显示：return 1.0 (1 FPS，极省电)
-
-        注意:
-            - 帧率越高，CPU 占用越高
-            - 对于 OLED 屏幕，过高帧率会缩短寿命
-            - 根据实际需求选择合适的帧率
-        """
-        # 使用默认帧率 8 FPS（0.125 秒）
-        # 对于静态显示的 Hello World，这已足够
-        return super().get_frame_time()
-
-        # 如果需要更高帧率（如动画），可以返回：
-        # return 1.0 / 30.0  # 30 FPS
-        # return 1.0 / 60.0  # 60 FPS
-
-
-# 插件配置说明（写在 config/plugins.json）:
-# {
-#   "name": "hello",           # 插件文件名（不含 .py）
-#   "enabled": true,           # 是否启用插件
-#   "auto_hide": false,        # 是否自动隐藏（需要实现 is_playing）
-#   "class_name": "Hello",     # 插件类名（默认为 name 首字母大写）
-#   "config": {},              # 插件特定配置（通过 manager.config 访问）
-#   "description": "Hello World 示例插件"
-# }
-
-# 使用说明:
-# 1. 将此文件保存为: screen/plugins/hello.py
-# 2. 在 config/plugins.json 中添加上述配置
-# 3. 重启应用，插件会自动加载
-# 4. 使用按键切换到 hello 插件，查看显示效果
-
-# 更多示例:
-# - screen/plugins/clock.py: 实时时钟显示
-# - screen/plugins/dino.py: 游戏插件，处理按键输入
-# - screen/plugins/airplay.py: 播放器插件，使用 auto_hide 和 event_listener

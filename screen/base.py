@@ -3,7 +3,7 @@ from PIL import Image, ImageDraw
 from until.log import LOGGER
 from screen.manager import FONTS
 
-DEFAULT_FRAME_TIME = 1.0 / 8.0  
+DEFAULT_FPS = 8.0 
 
 class DisplayPlugin(ABC):
     """Base class for display plugins"""
@@ -14,6 +14,7 @@ class DisplayPlugin(ABC):
         self.manager = manager
         self.width = width
         self.height = height
+        
         
         # ID
         self.name = self.name or "base"
@@ -32,7 +33,8 @@ class DisplayPlugin(ABC):
         
         # Parameters
         self.is_active = False # whether the plugin is active
-
+        self._fps = DEFAULT_FPS
+        
         LOGGER.info(f"[\033[1m{self.name}\033[0m] initialized.")
 
     def update(self):
@@ -57,10 +59,6 @@ class DisplayPlugin(ABC):
         """check if the plugin should be activated"""
         return self.is_active
     
-    def get_frame_time(self):
-        """get the current frame time"""
-        return DEFAULT_FRAME_TIME
-
     def set_active(self, active):
         """set the active state of the plugin"""
         if self.manager.last_active != self and active:
@@ -87,5 +85,15 @@ class DisplayPlugin(ABC):
     
     @property
     def canvas(self):
-        """get the canvas"""
+        """get the canvas draw object"""
         return self.draw
+    
+    @property
+    def framerate(self):
+        """get the current framerate"""
+        return 1.0 / self._fps
+    
+    @framerate.setter
+    def framerate(self, value):
+        """set the current framerate"""
+        self._fps = value
