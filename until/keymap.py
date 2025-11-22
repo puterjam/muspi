@@ -226,7 +226,7 @@ class KeyMap:
         """获取音量减少键"""
         return self.get_key("media", "volume_down")
 
-    def get_media_mute(self):
+    def get_media_volume_mute(self):
         """获取静音键"""
         return self.get_key("media", "mute")
 

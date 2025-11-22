@@ -280,6 +280,7 @@ class roon(DisplayPlugin):
         key_play_pause = self.keymap.get_media_play_pause()
         key_next = self.keymap.get_media_next()
         key_previous = self.keymap.get_media_previous()
+        key_stop = self.keymap.get_media_stop()  # 停止播放
 
         if evt.value == 1:  # key down
             # select 键或专用播放/暂停键
@@ -291,6 +292,9 @@ class roon(DisplayPlugin):
             # 专用上一曲键
             if self.keymap.is_key_match(evt.code, key_previous):
                 self.roon.playback_control(self.zone_id, control="previous")
+            # 专用停止键
+            if self.keymap.is_key_match(evt.code, key_stop):
+                self.roon.playback_control(self.zone_id, control="stop")
 
     def event_listener(self):
         self._read_metadata()

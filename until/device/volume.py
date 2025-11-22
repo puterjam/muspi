@@ -110,4 +110,43 @@ def adjust_volume(direction):
 
     # 返回调整后的音量百分比
     return get_volume_percent()
-            
+
+def toggle_mute():
+    """
+    切换静音状态
+
+    Returns:
+        bool: 当前静音状态 (True=静音, False=取消静音)，失败返回 None
+    """
+    if not PCM_CONTROLS:
+        LOGGER.warning("No PCM controls detected")
+        return None
+
+    # 切换所有检测到的 PCM 控制器的静音状态
+    mute_status = None
+    for control in PCM_CONTROLS:
+        try:
+            if CARD == "default":
+                result = subprocess.run(["amixer", "set", control, "toggle"],
+                                      capture_output=True, text=True)
+            else:
+                result = subprocess.run(["amixer", "-c", CARD, "set", control, "toggle"],
+                                      capture_output=True, text=True)
+
+            # 解析静音状态 [on] 或 [off]
+            if mute_status is None and result.stdout:
+                # 查找 [on] 或 [off] 标记
+                if "[off]" in result.stdout:
+                    mute_status = True  # off = 静音
+                elif "[on]" in result.stdout:
+                    mute_status = False  # on = 取消静音
+
+        except Exception as e:
+            LOGGER.error(f"Toggle mute for {control} failed: {e}")
+            return None
+
+    if mute_status is not None:
+        LOGGER.info(f"🔇 Mute: {mute_status}")
+
+    return mute_status
+

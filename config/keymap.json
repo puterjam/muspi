@@ -21,8 +21,8 @@
 
         "action": {
             "_comment": "功能操作按键",
-            "select": ["KEY_ENTER"],
-            "cancel": ["KEY_SPACE"],
+            "select": ["KEY_SPACE"],
+            "cancel": ["KEY_ESC"],
             "next_screen": ["KEY_PAGEDOWN"],
             "previous_screen": ["KEY_PAGEUP"],
             "menu": ["KEY_M"]
@@ -33,7 +33,7 @@
             "play_pause": ["KEY_PLAYPAUSE", "KEY_KP1"],
             "next": ["KEY_NEXTSONG", "KEY_KP2"],
             "previous": ["KEY_PREVIOUSSONG"],
-            "stop": ["KEY_STOP"],
+            "stop": ["KEY_STOPCD"],
             "volume_up": ["KEY_VOLUMEUP"],
             "volume_down": ["KEY_VOLUMEDOWN"],
             "mute": ["KEY_MUTE"]
@@ -52,7 +52,7 @@
             "KEY_PLAYPAUSE",
             "KEY_PLAY",
             "KEY_PAUSE",
-            "KEY_STOP",
+            "KEY_STOPCD",
             "KEY_NEXTSONG",
             "KEY_PREVIOUSSONG",
             "KEY_FORWARD",

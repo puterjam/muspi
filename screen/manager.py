@@ -5,7 +5,7 @@ import signal
 from pathlib import Path
 from PIL import Image, ImageDraw
 from until.device.input import KeyListener, ecodes
-from until.device.volume import adjust_volume, detect_pcm_controls
+from until.device.volume import adjust_volume, detect_pcm_controls, toggle_mute, get_volume_percent
 from until.log import LOGGER
 from until.keymap import get_keymap
 
@@ -91,6 +91,7 @@ class DisplayManager:
         self.volume_adjust_interval = 0.03  # 30ms interval for comfortable volume adjustment
         self.last_volume_adjust_time = 0
         self.volume_adjusting = False
+        self.is_muted = False  # 跟踪静音状态
 
         # initialize plugins
         self.plugins = []
@@ -159,6 +160,11 @@ class DisplayManager:
 
         current_time = time.time()
         if current_time - self.last_volume_adjust_time >= self.volume_adjust_interval:
+            # 如果当前是静音状态，先取消静音
+            if self.is_muted:
+                self.is_muted = toggle_mute()
+                LOGGER.info("Auto-unmuted due to volume adjustment")
+
             if hasattr(self.last_active, "adjust_volume"):
                 self.last_active.adjust_volume(direction)
             else:
@@ -182,6 +188,7 @@ class DisplayManager:
         key_previous_screen = self.keymap.get_action_previous_screen()
         key_volume_up = self.keymap.get_media_volume_up()
         key_volume_down = self.keymap.get_media_volume_down()
+        key_volume_mute = self.keymap.get_media_volume_mute()
 
         # 获取导航键
         key_nav_left = self.keymap.get_nav_left()
@@ -194,6 +201,7 @@ class DisplayManager:
                        self.keymap.is_key_match(evt.code, key_nav_up)
         is_volume_down = self.keymap.is_key_match(evt.code, key_volume_down) or \
                          self.keymap.is_key_match(evt.code, key_nav_down)
+        is_volume_mute = self.keymap.is_key_match(evt.code, key_volume_mute)
 
         if evt.value == 1:  # key down
             if self.sleep:
@@ -216,6 +224,18 @@ class DisplayManager:
                 if is_volume_down:
                     self.volume_adjusting = True
                     self._adjust_volume_with_interval("down")
+
+                # Volume mute toggle
+                if is_volume_mute:
+                    self.is_muted = toggle_mute()
+                    if self.is_muted is not None:
+                        # 显示静音状态
+                        if self.is_muted:
+                            self.overlay_manager.show_volume(0)
+                        else:
+                            volume = get_volume_percent()
+                            if volume is not None:
+                                self.overlay_manager.show_volume(volume)
 
         elif evt.value == 2:  # key repeat (long press)
             if not self.sleep:
