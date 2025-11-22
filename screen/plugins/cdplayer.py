@@ -14,8 +14,8 @@ from until.log import LOGGER
 from until.keymap import get_keymap
 
 MPV_SOCKET_PATH = "/tmp/mpv_socket"
-CD_DEVICE = "/dev/sr0"
-        
+
+# 光盘播放器插件类 for Muspi
 class cdplayer(DisplayPlugin):
     def __init__(self, manager, width, height):
         self.name = "cdplayer"
@@ -29,6 +29,8 @@ class cdplayer(DisplayPlugin):
 
         self.media_player.start_cd_monitor()
         self._is_in_longpress = False
+        self._key_press_start_time = {}  # Track when each key was pressed
+        self._longpress_duration = 2.0  # 3 seconds for long press
         self.keymap = get_keymap()
 
     def render(self):    
@@ -108,40 +110,58 @@ class cdplayer(DisplayPlugin):
         key_select = self.keymap.get_action_select()  # 播放/暂停/停止
         key_cancel = self.keymap.get_action_cancel()  # 下一曲/弹出
 
-        if evt.value == 2:  # long press
-            # 长按 select 键 = 停止
-            if self.keymap.is_key_match(evt.code, key_select) and not self._is_in_longpress:
-                self.media_player.stop()
-                self.media_player.cd.reset()
-                self._is_in_longpress = True
+        if evt.value == 1:  # key down - record press start time
+            self._key_press_start_time[evt.code] = time.time()
+            self._is_in_longpress = False
 
-            # 长按 cancel 键 = 弹出 CD
-            if self.keymap.is_key_match(evt.code, key_cancel) and not self._is_in_longpress:
-                self.media_player.eject()
-                self._is_in_longpress = True
+        elif evt.value == 2:  # key hold (repeated event)
+            # Check if key has been held long enough (3 seconds)
+            if evt.code in self._key_press_start_time and not self._is_in_longpress:
+                press_duration = time.time() - self._key_press_start_time[evt.code]
 
-        if evt.value == 0:  # key up
-            # 短按 select 键 = 播放/暂停/尝试播放
-            if self.keymap.is_key_match(evt.code, key_select) and not self._is_in_longpress:
-                if self.media_player.is_running:
-                    # 正在播放，则暂停/恢复
-                    self.media_player.pause_or_play()
-                elif self.media_player.cd.is_inserted and self.media_player.cd.read_status != "reading":
-                    # CD已插入且读取完成，直接播放
-                    self.media_player.play()
-                else:
-                    # CD未插入或正在读取，尝试加载并播放
-                    self.media_player.try_to_play()
+                if press_duration >= self._longpress_duration:
+                    # 长按 select 键 = 停止
+                    if self.keymap.is_key_match(evt.code, key_select):
+                        self.media_player.stop()
+                        self.media_player.cd.reset()
+                        self._is_in_longpress = True
 
-            # 短按 cancel 键 = 下一曲
-            if self.keymap.is_key_match(evt.code, key_cancel) and self.media_player.cd.is_inserted:
-                self.media_player.next_track()
+                    # 长按 cancel 键 = 弹出 CD
+                    elif self.keymap.is_key_match(evt.code, key_cancel):
+                        self.media_player.eject()
+                        self._is_in_longpress = True
 
-            self._is_in_longpress = False  
+        elif evt.value == 0:  # key up
+            # Check if it was a long press or short press
+            if evt.code in self._key_press_start_time:
+                press_duration = time.time() - self._key_press_start_time[evt.code]
 
+                # Only handle short press if not already handled as long press
+                if not self._is_in_longpress and press_duration < self._longpress_duration:
+                    # 短按 select 键 = 播放/暂停/尝试播放
+                    if self.keymap.is_key_match(evt.code, key_select):
+                        if self.media_player.is_running:
+                            # 正在播放，则暂停/恢复
+                            self.media_player.pause_or_play()
+                        elif self.media_player.cd.is_inserted and self.media_player.cd.read_status != "reading":
+                            # CD已插入且读取完成，直接播放
+                            self.media_player.play()
+                        else:
+                            # CD未插入或正在读取，尝试加载并播放
+                            self.media_player.try_to_play()
+
+                    # 短按 cancel 键 = 下一曲
+                    elif self.keymap.is_key_match(evt.code, key_cancel) and self.media_player.cd.is_inserted:
+                        self.media_player.next_track()
+
+                # Clean up
+                del self._key_press_start_time[evt.code]
+                self._is_in_longpress = False  
+
+# 媒体播放器类
 class MediaPlayer:
     def __init__(self):
-        self.cd = CD()
+        self.cd = CDDevice()
         self._mpv = None
         self._monitor_thread = None
         self._stop_cd_monitor = False
@@ -165,23 +185,23 @@ class MediaPlayer:
     def try_to_play(self):
         # If already reading, don't trigger another read
         if self.cd.read_status == "reading":
-            LOGGER.info("cd is already reading, please wait")
+            LOGGER.info("CD is already, please wait")
             return
 
         # If already running, just resume/unpause
         if self.is_running:
-            LOGGER.info("player is already running")
+            LOGGER.info("MPV is running")
             return
 
         def _callback(is_inserted):
-            LOGGER.info(f"cd loaded: {is_inserted}")
+            LOGGER.info(f"CD loaded: {is_inserted}")
             if is_inserted:
                 self.play()
             else:
                 if self.cd.read_status == "reading":
-                    LOGGER.info("cd is reading")
+                    LOGGER.info("CD is reading")
                 else:
-                    LOGGER.info("cd not inserted")
+                    LOGGER.info("CD not inserted")
                     self.cd.read_status = "nodisc"
 
         self.load_async(_callback) #try to load cd  
@@ -196,7 +216,7 @@ class MediaPlayer:
     def play(self):
         # Prevent duplicate play
         if self.is_running:
-            LOGGER.warning('player is already running, ignoring play request')
+            LOGGER.warning('MPV is running, ignoring play request')
             return
 
         # Check if CD is properly loaded
@@ -204,7 +224,15 @@ class MediaPlayer:
             LOGGER.warning('CD not properly loaded, cannot play')
             return
 
-        LOGGER.info('playing audio from CD')
+        # Clean up socket file before starting new process
+        try:
+            if os.path.exists(MPV_SOCKET_PATH):
+                os.remove(MPV_SOCKET_PATH)
+                LOGGER.info('Cleaned up old mpv socket before starting')
+        except Exception as e:
+            LOGGER.error(f'Error cleaning up socket before play: {e}')
+
+        LOGGER.info('Play audio from CD')
         self._mpv = subprocess.Popen(self.MPV_COMMAND + ['cdda://'],
                                      bufsize=1,
                                      stdout=subprocess.PIPE,
@@ -231,7 +259,7 @@ class MediaPlayer:
         for line in pipe:
             if not line:
                 break
-            LOGGER.info(f"\033[1m\033[32mmpv monitor\033[0m: {line.strip()}")
+            LOGGER.info(f"\033[1m\033[32mMPV monitor\033[0m: {line.strip()}")
 
             if 'Exiting...' in line:
                 self.stop()
@@ -245,14 +273,44 @@ class MediaPlayer:
                 break
 
     def stop(self):
-        LOGGER.info('stopping audio from CD')
-        if self.is_running:
-            self._mpv.terminate()
-            self._mpv = None
-            self.is_player_ready = False
-            self.read_mpv_thread = None
-            self.read_meta_thread = None
-            self.play_state = "stopped"
+        LOGGER.info('Stopping audio from CD')
+        if self._mpv is not None:
+            try:
+                # First try graceful termination
+                self._mpv.terminate()
+
+                # Wait up to 2 seconds for process to end
+                try:
+                    self._mpv.wait(timeout=2)
+                    LOGGER.info('MPV process terminated gracefully')
+                except subprocess.TimeoutExpired:
+                    # If still running, force kill
+                    LOGGER.warning('MPV process did not terminate, force killing')
+                    self._mpv.kill()
+                    self._mpv.wait()  # Wait for kill to complete
+
+            except Exception as e:
+                LOGGER.error(f'Error stopping MPV: {e}')
+                # Force kill as last resort
+                try:
+                    self._mpv.kill()
+                    self._mpv.wait()
+                except:
+                    pass
+            finally:
+                self._mpv = None
+                self.is_player_ready = False
+                self.read_mpv_thread = None
+                self.read_meta_thread = None
+                self.play_state = "stopped"
+
+                # Clean up socket file if it exists
+                try:
+                    if os.path.exists(MPV_SOCKET_PATH):
+                        os.remove(MPV_SOCKET_PATH)
+                        LOGGER.info('Cleaned up mpv socket')
+                except Exception as e:
+                    LOGGER.error(f'Error cleaning up socket: {e}')
 
     def pause_or_play(self):
         if self.is_running and self.chapter is not None:
@@ -268,18 +326,20 @@ class MediaPlayer:
         if self.is_running and self.chapter is not None:
             try:
                 self.play_state = "pause"
+                LOGGER.info("Next track.")
                 self._run_command('add', 'chapter', '1')
             except Exception:
-                LOGGER.error("last track.")
+                LOGGER.error("Last track.")
         self._set_current_track_info()
 
     def prev_track(self):
         if self.is_running and self.chapter is not None:
             try:
                 self.play_state = "pause"
+                LOGGER.info("Previous track.")
                 self._run_command('add', 'chapter', '-1')
             except Exception:
-                LOGGER.error("first track.")
+                LOGGER.error("First track.")
         self._set_current_track_info()
 
     def _set_current_track_info(self):
@@ -321,7 +381,7 @@ class MediaPlayer:
                     else:
                         return None
                 except Exception as e:
-                    LOGGER.error(f"run command error: {e}")
+                    LOGGER.error(f"Run command error: {e}")
                     return None
         except Exception:
             # Socket not ready yet, silently return None
@@ -332,7 +392,19 @@ class MediaPlayer:
         '''
         check if the mpv is running
         '''
-        return self._mpv is not None
+        if self._mpv is None:
+            return False
+
+        # Check if process is actually alive
+        if self._mpv.poll() is not None:
+            # Process has terminated
+            LOGGER.warning('MPV process terminated unexpectedly')
+            self._mpv = None
+            self.is_player_ready = False
+            self.play_state = "stopped"
+            return False
+
+        return True
     
     @property
     def chapter(self):
@@ -397,20 +469,41 @@ class MediaPlayer:
             if not line:
                 break
 
-            if 'sr0' in line and 'change' in line:
-                LOGGER.info("cdrom content changed")
-                try:
-                    self.stop()
-                    self.try_to_play()
+            # Monitor all sr devices (sr0, sr1, sr2, etc.)
+            if any(f'sr{i}' in line for i in range(10)):
+                if 'change' in line or 'remove' in line:
+                    try:
+                        # Ensure complete stop before any action
+                        self.stop()
+                        time.sleep(0.5)  # Give time for cleanup
 
-                except Exception as e:
-                    LOGGER.error(f"reload cd error: {e}")
-                    self.stop()
+                        # Verify process is really stopped
+                        if self._mpv is not None:
+                            LOGGER.warning("MPV still exists after stop, force killing")
+                            try:
+                                self._mpv.kill()
+                                self._mpv.wait()
+                            except:
+                                pass
+                            self._mpv = None
+
+                        # Handle different event types
+                        if 'change' in line:
+                            LOGGER.info("CD-ROM content changed.")
+                            self.try_to_play()
+                        elif 'remove' in line:
+                            LOGGER.warning("USB CD-ROM device removed.")
+                            self.cd.reset()
+
+                    except Exception as e:
+                        LOGGER.error(f"Handle CD event error: {e}")
+                        self.stop()
 
         process.terminate()
         process.wait()
 
-class CD:
+# 定义 CD 设备类
+class CDDevice:
     def __init__(self):
         self.disc = None
         self._cd_info = None
@@ -420,11 +513,39 @@ class CD:
         self.tracks = []
         self.track_length = 0
         self.read_status = "idle" # idle, nodisc, reading, readed, error
+        self._cd_device = None  # Current CD device path
+
+    def _find_cd_device(self):
+        """
+        查找可用的 CD-ROM 设备
+        返回第一个找到的 /dev/sr* 设备路径
+        """
+        import glob
+        devices = glob.glob('/dev/sr*')
+        if devices:
+            # 过滤掉非块设备
+            for device in sorted(devices):
+                if os.path.exists(device):
+                    LOGGER.info(f"Found CD device: {device}")
+                    return device
+
+        # 尝试使用 /dev/cdrom 作为备选
+        if os.path.exists('/dev/cdrom'):
+            LOGGER.info("Using fallback device: /dev/cdrom")
+            return '/dev/cdrom'
+
+        LOGGER.warning("No CD device found")
+        return None
 
     def eject(self):
-        LOGGER.info("eject cd")
+        LOGGER.info("Eject CD")
         self.read_status = "ejecting"
-        subprocess.Popen(['eject', CD_DEVICE], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
+        # 使用当前设备或查找设备
+        device = self._cd_device or self._find_cd_device()
+        if device:
+            subprocess.Popen(['eject', device], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+
         self._is_cd_inserted = False
         self.disc = None
         self._cd_info = None
@@ -432,6 +553,7 @@ class CD:
         self.album = None
         self.tracks = []
         self.track_length = 0
+        self._cd_device = None
 
         threading.Timer(
             5,
@@ -459,8 +581,16 @@ class CD:
             LOGGER.info("Read CD")
             self.read_status = "reading"
 
+            # Find available CD device
+            self._cd_device = self._find_cd_device()
+            if not self._cd_device:
+                LOGGER.error("No CD device available")
+                self._no_disc()
+                return False
+
             # Use libdiscid to read disc
-            self.disc = libdiscid.read(CD_DEVICE)
+            LOGGER.info(f"Reading from device: {self._cd_device}")
+            self.disc = libdiscid.read(self._cd_device)
 
             if not self.disc or self.disc.toc == "":
                 self._no_disc()
@@ -481,17 +611,17 @@ class CD:
 
             #load cd info from file
             try:
-                LOGGER.info(f"load cd info from config/cd/{self.disc.id}.json")
+                LOGGER.info(f"Load CD info from config/cd/{self.disc.id}.json")
                 _cd_info = open(f"config/cd/{self.disc.id}.json", "r").read()
                 self._fix_info(json.loads(_cd_info))
 
                 return True
             except FileNotFoundError as e:
-                LOGGER.error(f"load file error: {e}")
+                LOGGER.error(f"Load file error: {e}")
 
             #if cd info is not found, get cd info from musicbrainz
             try:
-                LOGGER.info("request info from musicbrainz")
+                LOGGER.info("Request info from musicbrainz")
                 mb.set_useragent('muspi', '1.0', 'https://github.com/puterjam/muspi')
                 _cd_info = mb.get_releases_by_discid(self.disc.id, includes=["recordings", "artists"], cdstubs=False)
 
@@ -502,12 +632,12 @@ class CD:
 
                 self._fix_info(json.loads(_cd_info))
             except mb.ResponseError as e:
-                LOGGER.error(f"request from musicbrainz error: {e}")
+                LOGGER.error(f"Request from musicbrainz error: {e}")
 
             return True
 
         except Exception as e:
-            LOGGER.error(f"load cd error: {e}")
+            LOGGER.error(f"Load CD error: {e}")
             self._no_disc()
             return False
     
