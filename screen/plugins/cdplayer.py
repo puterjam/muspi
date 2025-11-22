@@ -209,8 +209,8 @@ class MediaPlayer:
         强制杀死所有mpv进程,防止重音问题
         """
         try:
-            # 使用pkill杀死所有cdda相关的mpv进程
-            result = subprocess.run(['pkill', '-9', '-f', 'mpv.*cdda'],
+            # 使用pkill杀死所有CD相关的mpv进程(包括cdda和普通文件播放)
+            result = subprocess.run(['pkill', '-9', '-f', 'mpv.*--input-ipc-server=/tmp/mpv_socket'],
                                    capture_output=True,
                                    text=True,
                                    timeout=3)
@@ -246,11 +246,25 @@ class MediaPlayer:
         except Exception as e:
             LOGGER.error(f'Error cleaning up socket before play: {e}')
 
-        LOGGER.info('Play audio from CD')
-        self._mpv = subprocess.Popen(self.MPV_COMMAND + ['cdda://'],
-                                     bufsize=1,
-                                     stdout=subprocess.PIPE,
-                                     universal_newlines=True)
+        # 根据CD类型选择播放方式
+        if self.cd.type == "cdda":
+            LOGGER.info('Play audio from CDDA')
+            self._mpv = subprocess.Popen(self.MPV_COMMAND + ['cdda://'],
+                                         bufsize=1,
+                                         stdout=subprocess.PIPE,
+                                         universal_newlines=True,
+                                         encoding='utf-8',
+                                         errors='replace')
+        else:
+            # Data CD - play audio files as playlist
+            LOGGER.info(f'Play {len(self.cd.audio_files)} audio files from data CD')
+            self._mpv = subprocess.Popen(self.MPV_COMMAND + self.cd.audio_files,
+                                         bufsize=1,
+                                         stdout=subprocess.PIPE,
+                                         universal_newlines=True,
+                                         encoding='utf-8',
+                                         errors='replace')
+
         # 启动监听线程
         self.read_mpv_thread = threading.Thread(target=self._monitor_mpv_output,
                         args=(self._mpv.stdout,),
@@ -270,21 +284,32 @@ class MediaPlayer:
         """
         监听 mpv 进程输出
         """
-        for line in pipe:
-            if not line:
-                break
-            LOGGER.info(f"\033[1m\033[32mMPV monitor\033[0m: {line.strip()}")
+        try:
+            for line in pipe:
+                if not line:
+                    break
 
-            if 'Exiting...' in line:
-                self.stop()
-                self.is_player_ready = False
+                try:
+                    LOGGER.info(f"\033[1m\033[32mMPV monitor\033[0m: {line.strip()}")
+                except Exception as e:
+                    LOGGER.warning(f"Error logging MPV output: {e}")
+                    continue
 
-            if '[cdda]' or '[alsa]' in line:
-                self._set_current_track_info()
-                self.is_player_ready = True
+                if 'Exiting...' in line:
+                    self.stop()
+                    self.cd.read_status = "idle"
+                    self.is_player_ready = False
 
-            if not self.is_running:
-                break
+                if '[cdda]' or '[alsa]' in line:
+                    self._set_current_track_info()
+                    self.is_player_ready = True
+
+                if not self.is_running:
+                    break
+        except Exception as e:
+            LOGGER.error(f"Error in MPV monitor thread: {e}")
+        finally:
+            LOGGER.info("MPV monitor thread exited")
 
     def stop(self):
         LOGGER.info('Stopping audio from CD')
@@ -327,7 +352,7 @@ class MediaPlayer:
                     LOGGER.error(f'Error cleaning up socket: {e}')
 
     def pause_or_play(self):
-        if self.is_running and self.chapter is not None:
+        if self.is_running:
             if self.get_play_state() == 'pause':
                 self._run_command('set', 'pause', 'no')
                 self.play_state = "playing"
@@ -337,33 +362,56 @@ class MediaPlayer:
         self._set_current_track_info()
             
     def next_track(self):
-        if self.is_running and self.chapter is not None:
+        if self.is_running:
             try:
                 self.play_state = "pause"
                 LOGGER.info("Next track.")
-                self._run_command('add', 'chapter', '1')
+                if self.cd.type == "cdda":
+                    # CDDA使用chapter切换
+                    self._run_command('add', 'chapter', '1')
+                else:
+                    # Data CD使用playlist切换
+                    self._run_command('playlist-next')
             except Exception:
                 LOGGER.error("Last track.")
         self._set_current_track_info()
 
     def prev_track(self):
-        if self.is_running and self.chapter is not None:
+        if self.is_running:
             try:
                 self.play_state = "pause"
                 LOGGER.info("Previous track.")
-                self._run_command('add', 'chapter', '-1')
+                if self.cd.type == "cdda":
+                    # CDDA使用chapter切换
+                    self._run_command('add', 'chapter', '-1')
+                else:
+                    # Data CD使用playlist切换
+                    self._run_command('playlist-prev')
             except Exception:
                 LOGGER.error("First track.")
         self._set_current_track_info()
 
     def _set_current_track_info(self):
         if self.is_running and self.is_player_ready:
-            if self.chapter is not None: # it meaning mpv is reader
-                self.current_artist = self.cd.artist
-                self.current_album = self.cd.album
-                self.current_title = self.cd.tracks[self.chapter][0]
-                self.current_track = self.chapter + 1
-                self.current_track_length = self.cd.track_length
+            if self.cd.type == "cdda":
+                # CDDA: 使用chapter信息
+                chapter = self.chapter
+                if chapter is not None and isinstance(chapter, int) and 0 <= chapter < len(self.cd.tracks):
+                    self.current_artist = self.cd.artist
+                    self.current_album = self.cd.album
+                    self.current_title = self.cd.tracks[chapter][0]
+                    self.current_track = chapter + 1
+                    self.current_track_length = self.cd.track_length
+            else:
+                # Data CD: 使用playlist-pos信息
+                playlist_pos = self._run_command('get_property', 'playlist-pos')
+                if playlist_pos is not None and isinstance(playlist_pos, int) and 0 <= playlist_pos < len(self.cd.tracks):
+                    self.current_title = self.cd.tracks[playlist_pos][0]  # 文件名
+                    self.current_artist = "DATA CD"
+                    ext = self.cd.tracks[playlist_pos][1]  # 扩展名
+                    self.current_album = ext[1:] if ext.startswith('.') else ext  # 去掉开头的点
+                    self.current_track = playlist_pos + 1
+                    self.current_track_length = self.cd.track_length
 
     def eject(self):
         self.stop()
@@ -518,6 +566,9 @@ class CDDevice:
         self.track_length = 0
         self.read_status = "idle" # idle, nodisc, reading, readed, error
         self._cd_device = None  # Current CD device path
+        self.type = "cdda"  # cdda or data
+        self.audio_files = []  # For data CDs
+        self.mount_point = "/media/cdrom"  # Mount point for data CDs
 
     def _find_cd_device(self):
         """
@@ -541,14 +592,91 @@ class CDDevice:
         LOGGER.warning("No CD device found")
         return None
 
+    def _scan_audio_files(self):
+        """
+        扫描挂载点的音频文件
+        """
+        audio_extensions = ['.mp3', '.flac', '.wav', '.ogg', '.m4a', '.wma', '.ape', '.aac']
+        audio_files = []
+
+        try:
+            if not os.path.exists(self.mount_point):
+                return []
+
+            for root, _, files in os.walk(self.mount_point):
+                for file in sorted(files):
+                    ext = os.path.splitext(file)[1].lower()
+                    if ext in audio_extensions:
+                        full_path = os.path.join(root, file)
+                        audio_files.append(full_path)
+
+            LOGGER.info(f"Found {len(audio_files)} audio files on data CD")
+            return audio_files
+        except Exception as e:
+            LOGGER.error(f"Error scanning audio files: {e}")
+            return []
+
+    def _mount_cd(self):
+        """
+        挂载CD到mount_point
+        """
+        try:
+            LOGGER.info(f"Mounting CD-ROM: {self._cd_device} to {self.mount_point}")
+
+            # 创建挂载点(如果不存在)
+            if not os.path.exists(self.mount_point):
+                mkdir_result = subprocess.run(['sudo', 'mkdir', '-p', self.mount_point],
+                                             capture_output=True, text=True, timeout=10)
+                if mkdir_result.returncode != 0:
+                    LOGGER.error(f"Failed to create mount point: {mkdir_result.stderr}")
+                    return False
+
+            # 尝试挂载 (增加超时时间到30秒,CD挂载可能较慢)
+            result = subprocess.run(['sudo', 'mount', self._cd_device, self.mount_point],
+                                   capture_output=True, text=True, timeout=30)
+
+            if result.returncode == 0:
+                LOGGER.info(f"CD mounted successfully at {self.mount_point}")
+                return True
+            else:
+                LOGGER.warning(f"Mount failed: {result.stderr}")
+                return False
+        except subprocess.TimeoutExpired:
+            # 超时但可能已经挂载成功,检查挂载状态
+            LOGGER.warning(f"Mount command timed out, checking if mounted anyway")
+            if os.path.ismount(self.mount_point):
+                LOGGER.info(f"CD is mounted at {self.mount_point} (despite timeout)")
+                return True
+            else:
+                LOGGER.error(f"Mount timed out and CD is not mounted")
+                return False
+        except Exception as e:
+            LOGGER.error(f"Error mounting CD: {e}")
+            return False
+
+    def _unmount_cd(self):
+        """
+        卸载CD
+        """
+        try:
+            subprocess.run(['sudo', 'umount', self.mount_point],
+                          capture_output=True, text=True, timeout=5)
+            LOGGER.info("CD unmounted")
+        except Exception as e:
+            LOGGER.error(f"Error unmounting CD: {e}")
+
     def eject(self):
         LOGGER.info("Eject CD")
         self.read_status = "ejecting"
 
+        # 先卸载数据CD
+        if self.type == "data":
+            self._unmount_cd()
+
         # 使用当前设备或查找设备
         device = self._cd_device or self._find_cd_device()
         if device:
-            subprocess.Popen(['eject', device], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            subprocess.Popen(['sudo','eject', device], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 
         self._is_cd_inserted = False
         self.disc = None
@@ -558,6 +686,8 @@ class CDDevice:
         self.tracks = []
         self.track_length = 0
         self._cd_device = None
+        self.type = "cdda"
+        self.audio_files = []
 
         threading.Timer(
             5,
@@ -592,58 +722,107 @@ class CDDevice:
                 self._no_disc()
                 return False
 
-            # Use libdiscid to read disc
-            LOGGER.info(f"Reading from device: {self._cd_device}")
-            self.disc = libdiscid.read(self._cd_device)
-
-            if not self.disc or self.disc.toc == "":
-                self._no_disc()
-                return False
-
-            self.read_status = "readed"
-            LOGGER.info("CD readed.")
-            LOGGER.info(f"disc id: {self.disc.id}")
-            LOGGER.info(f"disc toc: {self.disc.toc}")
-
-            #set default value
-            _toc = self.disc.toc.split(' ')
-            self.artist = "Unknown Artist"
-            self.album = ""
-            self.track_length = int(_toc[1])
-            self.tracks = [[f"Track {i+1}", "Unknown"] for i in range(self.track_length)]
-            self._is_cd_inserted = True
-
-            #load cd info from file
+            # Try to read as CDDA first
             try:
-                LOGGER.info(f"Load CD info from config/cd/{self.disc.id}.json")
-                _cd_info = open(f"config/cd/{self.disc.id}.json", "r").read()
-                self._fix_info(json.loads(_cd_info))
+                LOGGER.info(f"Reading from device: {self._cd_device}")
+                self.disc = libdiscid.read(self._cd_device)
 
-                return True
-            except FileNotFoundError as e:
-                LOGGER.error(f"Load file error: {e}")
+                if self.disc and self.disc.toc != "":
+                    # This is a CDDA
+                    self.type = "cdda"
+                    self.read_status = "readed"
+                    LOGGER.info("CDDA detected")
+                    LOGGER.info(f"disc id: {self.disc.id}")
+                    LOGGER.info(f"disc toc: {self.disc.toc}")
 
-            #if cd info is not found, get cd info from musicbrainz
-            try:
-                LOGGER.info("Request info from musicbrainz")
-                mb.set_useragent('muspi', '1.0', 'https://github.com/puterjam/muspi')
-                _cd_info = mb.get_releases_by_discid(self.disc.id, includes=["recordings", "artists"], cdstubs=False)
+                    #set default value
+                    _toc = self.disc.toc.split(' ')
+                    self.artist = "Unknown Artist"
+                    self.album = ""
+                    self.track_length = int(_toc[1])
+                    self.tracks = [[f"Track {i+1}", "Unknown"] for i in range(self.track_length)]
+                    self._is_cd_inserted = True
 
-                os.makedirs("config/cd", exist_ok=True)
-                _cd_info = json.dumps(_cd_info)
-                with open(f"config/cd/{self.disc.id}.json", "w") as f:
-                    f.write(_cd_info)
+                    # Try to load CDDA metadata
+                    return self._load_cdda_metadata()
+                else:
+                    raise Exception("Not a CDDA, try data CD")
 
-                self._fix_info(json.loads(_cd_info))
-            except mb.ResponseError as e:
-                LOGGER.error(f"Request from musicbrainz error: {e}")
+            except Exception as e:
+                # Not a CDDA, try as data CD
+                LOGGER.info(f"Not CDDA: {e}, trying data CD")
 
-            return True
+                # Try to mount as data CD
+                if self._mount_cd():
+                    # Scan for audio files
+                    self.audio_files = self._scan_audio_files()
+
+                    if len(self.audio_files) > 0:
+                        # Data CD with audio files
+                        self.type = "data"
+                        self.read_status = "readed"
+                        self.track_length = len(self.audio_files)
+
+                        # Build tracks list with filename info
+                        self.tracks = []
+                        for audio_file in self.audio_files:
+                            filename = os.path.basename(audio_file)
+                            name_without_ext = os.path.splitext(filename)[0]
+                            ext = os.path.splitext(filename)[1]
+                            self.tracks.append([name_without_ext, ext])
+
+                        self.artist = ""
+                        self.album = ""
+                        self._is_cd_inserted = True
+                        self.disc = True  # Mark as valid disc
+
+                        LOGGER.info(f"Data CD detected with {self.track_length} audio files")
+                        return True
+                    else:
+                        # No audio files found
+                        self._unmount_cd()
+                        self._no_disc()
+                        return False
+                else:
+                    # Mount failed
+                    self._no_disc()
+                    return False
 
         except Exception as e:
             LOGGER.error(f"Load CD error: {e}")
             self._no_disc()
             return False
+
+    def _load_cdda_metadata(self):
+        """
+        加载CDDA元数据
+        """
+        #load cd info from file
+        try:
+            LOGGER.info(f"Load CD info from config/cd/{self.disc.id}.json")
+            _cd_info = open(f"config/cd/{self.disc.id}.json", "r").read()
+            self._fix_info(json.loads(_cd_info))
+
+            return True
+        except FileNotFoundError as e:
+            LOGGER.error(f"Load file error: {e}")
+
+        #if cd info is not found, get cd info from musicbrainz
+        try:
+            LOGGER.info("Request info from musicbrainz")
+            mb.set_useragent('muspi', '1.0', 'https://github.com/puterjam/muspi')
+            _cd_info = mb.get_releases_by_discid(self.disc.id, includes=["recordings", "artists"], cdstubs=False)
+
+            os.makedirs("config/cd", exist_ok=True)
+            _cd_info = json.dumps(_cd_info)
+            with open(f"config/cd/{self.disc.id}.json", "w") as f:
+                f.write(_cd_info)
+
+            self._fix_info(json.loads(_cd_info))
+        except mb.ResponseError as e:
+            LOGGER.error(f"Request from musicbrainz error: {e}")
+
+        return True
     
     def _no_disc(self):
         self._is_cd_inserted = False
