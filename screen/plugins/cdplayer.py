@@ -98,13 +98,13 @@ class cdplayer(DisplayPlugin):
 
     def key_callback(self, evt):
         # 获取全局功能按键
-        key_select = self.keymap.get_action_select()  # 播放/暂停/停止
-        key_cancel = self.keymap.get_action_cancel()  # 下一曲/弹出
+        key_select = self.keymap.action_select  # 播放/暂停/停止
+        key_cancel = self.keymap.action_cancel  # 下一曲/弹出
         
-        key_prev = self.keymap.get_media_previous()  # 上一曲
-        key_next = self.keymap.get_media_next()  # 下一曲
-        key_stop = self.keymap.get_media_stop()  # 停止播放
-        key_play_pause = self.keymap.get_media_play_pause()  # 播放/暂停
+        key_prev = self.keymap.media_previous  # 上一曲
+        key_next = self.keymap.media_next  # 下一曲
+        key_stop = self.keymap.media_stop  # 停止播放
+        key_play_pause = self.keymap.media_play_pause  # 播放/暂停
 
         if evt.value == 1:  # key down - record press start time
             self._key_press_start_time[evt.code] = time.time()
@@ -117,13 +117,13 @@ class cdplayer(DisplayPlugin):
 
                 if press_duration >= self._longpress_duration:
                     # 长按 select 键 = 停止
-                    if self.keymap.is_key_match(evt.code, key_select):
+                    if self.keymap.match(key_select):
                         self.media_player.stop()
                         self.media_player.cd.reset()
                         self._is_in_longpress = True
 
                     # 长按 cancel 键 = 弹出 CD
-                    elif self.keymap.is_key_match(evt.code, key_cancel):
+                    elif self.keymap.match(key_cancel):
                         self.media_player.eject()
                         self._is_in_longpress = True
 
@@ -135,7 +135,7 @@ class cdplayer(DisplayPlugin):
                 # Only handle short press if not already handled as long press
                 if not self._is_in_longpress and press_duration < self._longpress_duration:
                     # 短按 select 键 = 播放/暂停/尝试播放
-                    if self.keymap.is_key_match(evt.code, key_select):
+                    if self.keymap.match(key_select):
                         if self.media_player.is_running:
                             # 正在播放，则暂停/恢复
                             self.media_player.pause_or_play()
@@ -147,24 +147,24 @@ class cdplayer(DisplayPlugin):
                             self.media_player.try_to_play()
 
                     # 短按 cancel 键 = 下一曲
-                    elif self.keymap.is_key_match(evt.code, key_cancel) and self.media_player.cd.is_inserted:
+                    elif self.keymap.match(key_cancel) and self.media_player.cd.is_inserted:
                         self.media_player.next_track()
 
                     # 上一曲
-                    elif self.keymap.is_key_match(evt.code, key_prev) and self.media_player.cd.is_inserted:
+                    elif self.keymap.match(key_prev) and self.media_player.cd.is_inserted:
                         self.media_player.prev_track()
 
                     # 下一曲
-                    elif self.keymap.is_key_match(evt.code, key_next) and self.media_player.cd.is_inserted:
+                    elif self.keymap.match(key_next) and self.media_player.cd.is_inserted:
                         self.media_player.next_track()
 
                     # 停止播放
-                    elif self.keymap.is_key_match(evt.code, key_stop):
+                    elif self.keymap.match(key_stop):
                         self.media_player.stop()
                         self.media_player.cd.reset()
 
                     # 播放/暂停
-                    elif self.keymap.is_key_match(evt.code, key_play_pause):
+                    elif self.keymap.match(key_play_pause):
                         if self.media_player.is_running:
                             # 正在播放，则暂停/恢复
                             self.media_player.pause_or_play()

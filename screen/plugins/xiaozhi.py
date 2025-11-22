@@ -507,22 +507,22 @@ class xiaozhi(DisplayPlugin):
     # 按键回调
     def key_callback(self, evt):
         # 获取全局功能按键
-        key_select = self.keymap.get_action_select()  # 语音输入
-        key_cancel = self.keymap.get_action_cancel()  # 切换聊天框
+        key_select = self.keymap.action_select  # 语音输入
+        key_cancel = self.keymap.action_cancel  # 切换聊天框
 
         self._wakeup()
         if evt.value == 1:  # key down
             # select 键 = 开始语音输入
-            if self.keymap.is_key_match(evt.code, key_select):
+            if self.keymap.match(key_select):
                 self._on_listening()
 
             # cancel 键 = 切换聊天框显示
-            if self.keymap.is_key_match(evt.code, key_cancel):
+            if self.keymap.match(key_cancel):
                 self.switch_chatbox()
 
         if evt.value == 0:  # key up
             # select 键释放 = 停止语音输入
-            if self.keymap.is_key_match(evt.code, key_select):
+            if self.keymap.match(key_select):
                 self._off_listening()
                      
     # 设置激活状态

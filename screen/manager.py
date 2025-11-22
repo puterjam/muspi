@@ -182,38 +182,34 @@ class DisplayManager:
     # 处理按键事件
     def key_callback(self, evt):
         """handle the key event"""
-
+        
         # 获取全局按键
-        key_next_screen = self.keymap.get_action_next_screen()
-        key_previous_screen = self.keymap.get_action_previous_screen()
-        key_volume_up = self.keymap.get_media_volume_up()
-        key_volume_down = self.keymap.get_media_volume_down()
-        key_volume_mute = self.keymap.get_media_volume_mute()
+        key_next_screen = self.keymap.action_next
+        key_previous_screen = self.keymap.action_previous
+        key_volume_up = self.keymap.media_volume_up
+        key_volume_down = self.keymap.media_volume_down
+        key_volume_mute = self.keymap.media_volume_mute
 
         # 获取导航键
-        key_nav_left = self.keymap.get_nav_left()
-        key_nav_right = self.keymap.get_nav_right()
-        key_nav_up = self.keymap.get_nav_up()
-        key_nav_down = self.keymap.get_nav_down()
+        key_nav_left = self.keymap.nav_left
+        key_nav_right = self.keymap.nav_right
+        key_nav_up = self.keymap.nav_up
+        key_nav_down = self.keymap.nav_down
 
         # Check if it's a volume key
-        is_volume_up = self.keymap.is_key_match(evt.code, key_volume_up) or \
-                       self.keymap.is_key_match(evt.code, key_nav_up)
-        is_volume_down = self.keymap.is_key_match(evt.code, key_volume_down) or \
-                         self.keymap.is_key_match(evt.code, key_nav_down)
-        is_volume_mute = self.keymap.is_key_match(evt.code, key_volume_mute)
+        is_volume_up = self.keymap.match(key_volume_up, key_nav_up)
+        is_volume_down = self.keymap.match(key_volume_down, key_nav_down)
+        is_volume_mute = self.keymap.match(key_volume_mute)
 
         if evt.value == 1:  # key down
             if self.sleep:
                 self.turn_on_screen()
             else:
                 # Screen switching: next_screen/previous_screen or left/right
-                if self.keymap.is_key_match(evt.code, key_next_screen) or \
-                   self.keymap.is_key_match(evt.code, key_nav_right):
+                if self.keymap.match(key_next_screen, key_nav_right):
                     self.active_next()
 
-                if self.keymap.is_key_match(evt.code, key_previous_screen) or \
-                   self.keymap.is_key_match(evt.code, key_nav_left):
+                if self.keymap.match(key_previous_screen, key_nav_left):
                     self.active_prev()
 
                 # Volume adjustment on initial press

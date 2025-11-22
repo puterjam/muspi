@@ -275,25 +275,25 @@ class roon(DisplayPlugin):
 
     def key_callback(self, evt):
         # 获取全局功能按键和媒体按键
-        key_select = self.keymap.get_action_select()  # 播放/暂停
-        key_cancel = self.keymap.get_action_cancel()  # 下一曲
-        key_play_pause = self.keymap.get_media_play_pause()
-        key_next = self.keymap.get_media_next()
-        key_previous = self.keymap.get_media_previous()
-        key_stop = self.keymap.get_media_stop()  # 停止播放
+        key_select = self.keymap.action_select  # 播放/暂停
+        key_cancel = self.keymap.action_cancel  # 下一曲
+        key_play_pause = self.keymap.media_play_pause
+        key_next = self.keymap.media_next
+        key_previous = self.keymap.media_previous
+        key_stop = self.keymap.media_stop  # 停止播放
 
         if evt.value == 1:  # key down
             # select 键或专用播放/暂停键
-            if self.keymap.is_key_match(evt.code, key_select) or self.keymap.is_key_match(evt.code, key_play_pause):
+            if self.keymap.match(key_select) or self.keymap.match(key_play_pause):
                 self.roon.playback_control(self.zone_id, control="playpause")
             # cancel 键或专用下一曲键
-            if self.keymap.is_key_match(evt.code, key_cancel) or self.keymap.is_key_match(evt.code, key_next):
+            if self.keymap.match(key_cancel) or self.keymap.match(key_next):
                 self.roon.playback_control(self.zone_id, control="next")
             # 专用上一曲键
-            if self.keymap.is_key_match(evt.code, key_previous):
+            if self.keymap.match(key_previous):
                 self.roon.playback_control(self.zone_id, control="previous")
             # 专用停止键
-            if self.keymap.is_key_match(evt.code, key_stop):
+            if self.keymap.match(key_stop):
                 self.roon.playback_control(self.zone_id, control="stop")
 
     def event_listener(self):

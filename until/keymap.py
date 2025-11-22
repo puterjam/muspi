@@ -136,21 +136,59 @@ class KeyMap:
 
         return keycodes
 
-    def is_key_match(self, keycode, target_keys):
+    def match(self, *target_keys, keycode=None):
         """
         检查按键代码是否匹配目标按键列表
 
         Args:
-            keycode: 实际按下的按键代码 (int)
-            target_keys: 目标按键列表 (list[int])
+            *target_keys: 一个或多个目标按键列表 (list[int])，支持传入多个列表进行检查
+            keycode: 实际按下的按键代码 (int)，如果为 None 则自动从调用者的 self.key_code 获取
 
         Returns:
-            bool: 是否匹配
-        """
-        if not target_keys:
-            return False
+            bool: 是否匹配任意一个按键列表
 
-        return keycode in target_keys
+        Examples:
+            # 单个按键列表
+            match(key_volume_up)
+
+            # 多个按键列表 (匹配任意一个即返回 True)
+            match(key_volume_up, key_nav_up)
+
+            # 显式指定 keycode
+            match(key_volume_up, key_nav_up, keycode=evt.code)
+
+            # 兼容旧用法
+            match(evt.code, key_volume_up)
+        """
+        # 兼容旧的调用方式: is_key_match(evt.code, key_list)
+        # 如果第一个参数是 int 且 keycode 为 None，说明是旧用法
+        if len(target_keys) == 2 and isinstance(target_keys[0], int) and keycode is None:
+            keycode = target_keys[0]
+            target_keys = (target_keys[1],)
+        elif len(target_keys) == 1 and isinstance(target_keys[0], int) and isinstance(keycode, list):
+            # is_key_match(evt.code, keycode=key_list) 的情况
+            keycode, target_keys = target_keys[0], (keycode,)
+
+        # 如果 keycode 为 None，尝试从调用者的 self.key_code 获取
+        if keycode is None:
+            import inspect
+            frame = inspect.currentframe()
+            try:
+                caller_frame = frame.f_back
+                caller_self = caller_frame.f_locals.get('self')
+                if caller_self and hasattr(caller_self, 'key_code'):
+                    keycode = caller_self.key_code
+                else:
+                    return False
+            finally:
+                del frame
+
+        # 检查所有传入的按键列表
+        for keys in target_keys:
+            if keys and keycode in keys:
+                return True
+
+        return False
 
     def get_longpress_threshold(self):
         """
@@ -164,85 +202,100 @@ class KeyMap:
     # ===== 便捷访问方法 =====
 
     # 导航键
-    def get_nav_up(self):
+    @property
+    def nav_up(self):
         """获取上方向键"""
         return self.get_key("navigation", "up")
-
-    def get_nav_down(self):
+    
+    @property
+    def nav_down(self):
         """获取下方向键"""
         return self.get_key("navigation", "down")
-
-    def get_nav_left(self):
+    @property
+    def nav_left(self):
         """获取左方向键"""
         return self.get_key("navigation", "left")
 
-    def get_nav_right(self):
+    @property
+    def nav_right(self):
         """获取右方向键"""
         return self.get_key("navigation", "right")
 
     # 功能键
-    def get_action_select(self):
+    @property
+    def action_select(self):
         """获取确定键 (播放/暂停、确认、跳跃等)"""
         return self.get_key("action", "select")
-
-    def get_action_cancel(self):
+    
+    @property
+    def action_cancel(self):
         """获取取消键 (下一曲、取消、切换等)"""
         return self.get_key("action", "cancel")
-
-    def get_action_menu(self):
+    
+    @property
+    def action_menu(self):
         """获取菜单键 (切换插件、菜单等)"""
         return self.get_key("action", "menu")
 
-    def get_action_next_screen(self):
+    @property
+    def action_next(self):
         """获取下一屏键"""
         return self.get_key("action", "next_screen")
 
-    def get_action_previous_screen(self):
+    @property
+    def action_previous(self):
         """获取上一屏键"""
         return self.get_key("action", "previous_screen")
 
     # 媒体键
-    def get_media_play_pause(self):
+    @property
+    def media_play_pause(self):
         """获取播放/暂停键"""
         return self.get_key("media", "play_pause")
-
-    def get_media_next(self):
+    
+    @property
+    def media_next(self):
         """获取下一曲键"""
         return self.get_key("media", "next")
 
-    def get_media_previous(self):
+    @property
+    def media_previous(self):
         """获取上一曲键"""
         return self.get_key("media", "previous")
-
-    def get_media_stop(self):
+    
+    @property
+    def media_stop(self):
         """获取停止键"""
         return self.get_key("media", "stop")
-
-    def get_media_volume_up(self):
+    
+    @property
+    def media_volume_up(self):
         """获取音量增加键"""
         return self.get_key("media", "volume_up")
-
-    def get_media_volume_down(self):
+    
+    @property
+    def media_volume_down(self):
         """获取音量减少键"""
         return self.get_key("media", "volume_down")
-
-    def get_media_volume_mute(self):
+    
+    @property
+    def media_volume_mute(self):
         """获取静音键"""
         return self.get_key("media", "mute")
 
-    def print_current_mapping(self):
-        """打印当前按键映射 (调试用)"""
-        LOGGER.info("=== 当前全局按键映射 ===")
+    # def print_current_mapping(self):
+    #     """打印当前按键映射 (调试用)"""
+    #     LOGGER.info("=== 当前全局按键映射 ===")
 
-        keymap = self.config.get("keymap", {})
+    #     keymap = self.config.get("keymap", {})
 
-        for category, actions in keymap.items():
-            if category.startswith("_"):
-                continue
-            LOGGER.info(f"\n[{category}]")
-            for action, key_names in actions.items():
-                if not action.startswith("_"):
-                    LOGGER.info(f"  {action}: {key_names}")
+    #     for category, actions in keymap.items():
+    #         if category.startswith("_"):
+    #             continue
+    #         LOGGER.info(f"\n[{category}]")
+    #         for action, key_names in actions.items():
+    #             if not action.startswith("_"):
+    #                 LOGGER.info(f"  {action}: {key_names}")
 
 
 # 全局单例实例

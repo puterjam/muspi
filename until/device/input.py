@@ -101,6 +101,9 @@ class KeyListener(threading.Thread):
                             # call all registered callbacks
                             for callback in self.callbacks:
                                 try:
+                                    # 如果 callback 是绑定方法，则在其 self 对象上设置 evt 属性
+                                    if hasattr(callback, '__self__'):
+                                        callback.__self__.key_code = event.code
                                     callback(event)
                                 except Exception as e:
                                     LOGGER.error(f"execute callback {callback.__name__} error: {e}")
