@@ -21,7 +21,6 @@ class cdplayer(DisplayPlugin):
         self.name = "cdplayer"
         super().__init__(manager, width, height)
 
-        self.icon_drawer = None
         self.icon_drawer = IconDrawer(self.draw)
         self.media_player = MediaPlayer()
         self.last_play_time = 0
@@ -30,16 +29,12 @@ class cdplayer(DisplayPlugin):
         self.media_player.start_cd_monitor()
         self._is_in_longpress = False
         self._key_press_start_time = {}  # Track when each key was pressed
-        self._longpress_duration = 2.0  # 3 seconds for long press
+        self._longpress_duration = 2.0  # 2 seconds for long press
         self.keymap = get_keymap()
 
-    def render(self):    
+    def render(self):
         # get the canvas
-        draw = self.canvas   
-                
-        # initialize the icon drawer
-        if self.icon_drawer is None:
-            self.icon_drawer = IconDrawer(draw)
+        draw = self.canvas
 
         # draw the scrolling text
         offset = 28
@@ -48,7 +43,6 @@ class cdplayer(DisplayPlugin):
                 draw_scroll_text(draw, self.media_player.current_title, (offset, 10), width=100, font=self.font10, align="center")
                 draw_scroll_text(draw, self.media_player.current_artist + " - " + self.media_player.current_album, (offset, 24), width=100, font=self.font8, align="center")
                 draw_scroll_text(draw, f"♪{self.media_player.current_track}/{self.media_player.current_track_length}", (offset, 0), width=100, font=self.font_status, align="center")
-                # draw_scroll_text(draw, "♪" + self.client_name, (6+offset, 0), width=90, font=self.font_status, align="center")
             else:
                 draw_scroll_text(draw, "即将开始播放.", (offset, 10), width=100, font=self.font10, align="center")
         else:
@@ -79,9 +73,6 @@ class cdplayer(DisplayPlugin):
         else:
             draw_vu(draw, volume_level=0.0)
             draw_scroll_text(draw, "⏹", (offset, 0), font=self.font_status)
-
-        # draw the volume wave icon
-        # self.icon_drawer.draw_volume_wave(x=86, y=0, level=volume)
                 
     def is_playing(self):
         return self.media_player.play_state == "playing"
@@ -213,6 +204,26 @@ class MediaPlayer:
 
         threading.Thread(target=_run, daemon=True).start()
     
+    def _kill_all_mpv_processes(self):
+        """
+        强制杀死所有mpv进程,防止重音问题
+        """
+        try:
+            # 使用pkill杀死所有cdda相关的mpv进程
+            result = subprocess.run(['pkill', '-9', '-f', 'mpv.*cdda'],
+                                   capture_output=True,
+                                   text=True,
+                                   timeout=3)
+            if result.returncode == 0:
+                LOGGER.info('Killed existing MPV processes')
+                time.sleep(0.3)  # 等待进程完全退出
+            else:
+                LOGGER.info('No existing MPV processes found')
+        except subprocess.TimeoutExpired:
+            LOGGER.warning('pkill command timed out')
+        except Exception as e:
+            LOGGER.error(f'Error killing MPV processes: {e}')
+
     def play(self):
         # Prevent duplicate play
         if self.is_running:
@@ -223,6 +234,9 @@ class MediaPlayer:
         if not self.cd.is_inserted or self.cd.disc is None:
             LOGGER.warning('CD not properly loaded, cannot play')
             return
+
+        # 强制清理所有可能存在的MPV进程
+        self._kill_all_mpv_processes()
 
         # Clean up socket file before starting new process
         try:
@@ -473,19 +487,9 @@ class MediaPlayer:
             if any(f'sr{i}' in line for i in range(10)):
                 if 'change' in line or 'remove' in line:
                     try:
-                        # Ensure complete stop before any action
+                        # Stop current playback and force kill any remaining processes
                         self.stop()
-                        time.sleep(0.5)  # Give time for cleanup
-
-                        # Verify process is really stopped
-                        if self._mpv is not None:
-                            LOGGER.warning("MPV still exists after stop, force killing")
-                            try:
-                                self._mpv.kill()
-                                self._mpv.wait()
-                            except:
-                                pass
-                            self._mpv = None
+                        self._kill_all_mpv_processes()
 
                         # Handle different event types
                         if 'change' in line:
@@ -696,27 +700,3 @@ class CDDevice:
                             return True #use cd info
 
         return False #use unknown info
-
-# if __name__ == "__main__":
-#     mp = MediaPlayer()
-
-#     # try:
-#     #     is_loaded = mp.load()
-
-#     #     if is_loaded:
-#     #         mp.play()
-#     #         # 启动CD监控
-#     # except Exception as e:
-#     #     print(f"play error: {e}")
-#     #     print(f"error line: {traceback.extract_tb(e.__traceback__)[-1].lineno}")
-
-#     mp.start_cd_monitor()
-        
-#     try:
-#         # 保持程序运行
-#         while True:
-#             time.sleep(1)
-#     except KeyboardInterrupt:
-#         print("\n停止监控")
-#         mp.stop()
-#         mp.stop_cd_monitor()
