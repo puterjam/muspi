@@ -363,7 +363,7 @@ class dino(DisplayPlugin):
         self.update_object()
         self.draw_game()
 
-    def key_callback(self, device_name, evt):
+    def key_callback(self, evt):
         # 获取全局功能按键
         key_select = self.keymap.get_action_select()  # 跳跃/开始游戏
         key_cancel = self.keymap.get_action_cancel()  # 跳跃/开始游戏

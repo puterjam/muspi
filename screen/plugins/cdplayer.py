@@ -96,7 +96,7 @@ class cdplayer(DisplayPlugin):
         if not self.media_player.is_running and time.time() - self.last_play_time > self.pause_timout:  # 300 seconds = 5 minutes
             self.set_active(False)
 
-    def key_callback(self, device_name, evt):
+    def key_callback(self, evt):
         # 获取全局功能按键
         key_select = self.keymap.get_action_select()  # 播放/暂停/停止
         key_cancel = self.keymap.get_action_cancel()  # 下一曲/弹出

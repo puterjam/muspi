@@ -180,7 +180,7 @@ class DisplayManager:
         sys.exit(0)
 
     # 处理按键事件
-    def key_callback(self, device_name, evt):
+    def key_callback(self, evt):
         """handle the key event"""
 
         # 获取全局按键

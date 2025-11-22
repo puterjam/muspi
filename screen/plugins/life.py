@@ -70,7 +70,7 @@ class life(DisplayPlugin):
         else:
             self.manager.key_listener.off(self.key_callback)
     
-    def key_callback(self, device_name, evt):
+    def key_callback(self, evt):
         # 获取全局功能按键
         key_select = self.keymap.get_action_select()  # 重新初始化
         key_cancel = self.keymap.get_action_cancel()  # 重新初始化

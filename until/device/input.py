@@ -101,7 +101,7 @@ class KeyListener(threading.Thread):
                             # call all registered callbacks
                             for callback in self.callbacks:
                                 try:
-                                    callback(device.name, event)
+                                    callback(event)
                                 except Exception as e:
                                     LOGGER.error(f"execute callback {callback.__name__} error: {e}")
 
