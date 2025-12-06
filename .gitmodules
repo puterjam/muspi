@@ -1,0 +1,3 @@
+[submodule "pyarduboy"]
+	path = pyarduboy
+	url = https://github.com/puterjam/pyarduboy.git
