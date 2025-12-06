@@ -27,10 +27,10 @@ class PluginManager:
 
         try:
             # 构建模块路径
-            module_path = f"screen.plugins.{plugin_name.lower()}"
+            module_path = f"screen.plugins.{plugin_name.lower()}.app"
 
             # 动态导入模块
-            LOGGER.info(f"Loading plugin module: {module_path}")
+            LOGGER.info(f"Loading plugin module: \033[94m{module_path.replace('screen.plugins.', '')}\033[0m")
             module = importlib.import_module(module_path)
 
             # 缓存模块

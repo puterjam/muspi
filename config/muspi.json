@@ -1,0 +1,18 @@
+{
+  "display": {
+    "driver": "ssd1309",
+    "interface": "spi",
+    "width": 128,
+    "height": 64,
+    "rotate": 0,
+    "spi": {
+      "port": 0,
+      "device": 0,
+      "bus_speed_hz": 8000000
+    },
+    "gpio": {
+      "dc": 25,
+      "rst": 27
+    }
+  }
+}

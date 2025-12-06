@@ -20,33 +20,27 @@
         },
         {
             "name": "life",
-            "enabled": false,
+            "enabled": true,
             "auto_hide": false,
             "config": {}
         },
         {
             "name": "airplay",
-            "enabled": true,
+            "enabled": false,
             "auto_hide": true,
             "config": {}
         },
         {
             "name": "roon",
-            "enabled": true,
+            "enabled": false,
             "auto_hide": false,
             "config": {}
         },
         {
             "name": "cdplayer",
-            "enabled": true,
-            "auto_hide": false,
-            "config": {}
-        },
-        {
-            "name": "matrix",
-            "enabled": true,
+            "enabled": false,
             "auto_hide": false,
             "config": {}
         }
     ]
-} 
+}

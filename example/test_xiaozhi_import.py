@@ -17,7 +17,7 @@ print()
 
 start = time.time()
 try:
-    import screen.plugins.xiaozhi
+    import screen.plugins.xiaozhi.app
     elapsed = time.time() - start
     print(f"✅ 导入成功: {elapsed:.3f}s")
 

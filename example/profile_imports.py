@@ -95,7 +95,7 @@ print()
 
 start = time.time()
 try:
-    import screen.plugins.xiaozhi
+    import screen.plugins.xiaozhi.app
     elapsed = time.time() - start
     print(f"完整模块导入: {elapsed:.3f}s")
 except Exception as e:

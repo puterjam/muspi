@@ -53,7 +53,17 @@ class MESSAGE:
     
 def get_mac_address():
     try:
-        result = subprocess.run(['ifconfig', 'eth0'], capture_output=True, text=True)
+        # 方法1: 直接读取系统文件 (最快最可靠)
+        with open('/sys/class/net/eth0/address', 'r') as f:
+            mac = f.read().strip()
+            if mac:
+                return mac
+    except Exception:
+        pass
+
+    try:
+        # 方法2: 使用 ip 命令 (通常都会安装)
+        result = subprocess.run(['ip', 'link', 'show', 'eth0'], capture_output=True, text=True)
         if result.returncode == 0:
             # 使用正则表达式匹配MAC地址
             mac = re.search(r'([0-9a-fA-F]{2}:){5}[0-9a-fA-F]{2}', result.stdout)
@@ -61,6 +71,7 @@ def get_mac_address():
                 return mac.group(0)
     except Exception:
         pass
+
     return 'a8:47:cb:ec:aa:gf'  # 如果获取失败，返回默认值
 
 def resample_audio(data, original_rate, target_rate):
@@ -96,6 +107,31 @@ def aes_ctr_decrypt(key, nonce, ciphertext):
     plaintext = decryptor.update(ciphertext) + decryptor.finalize()
     return plaintext
 
+def get_audio_capture_device():
+    """检测可用的录音设备，返回设备名称如 'hw:3,0'"""
+    try:
+        result = subprocess.run(['arecord', '-l'], capture_output=True, text=True)
+        if result.returncode == 0:
+            # 解析输出，查找第一个可用的录音设备
+            # 格式: card 3: Device_1 [USB PnP Sound Device], device 0: USB Audio [USB Audio]
+            lines = result.stdout.split('\n')
+            for line in lines:
+                if line.startswith('card'):
+                    # 提取 card 和 device 编号
+                    match = re.search(r'card (\d+):.*device (\d+):', line)
+                    if match:
+                        card = match.group(1)
+                        device = match.group(2)
+                        device_name = f'hw:{card},{device}'
+                        LOGGER.info(f"Found audio capture device: {device_name}")
+                        return device_name
+    except Exception as e:
+        LOGGER.warning(f"Failed to detect audio capture device: {e}")
+
+    # 如果检测失败，返回默认值
+    LOGGER.warning("Using default audio capture device: default")
+    return 'default'
+
 class xiaozhi(DisplayPlugin):
     def __init__(self, manager, width, height):
         self.name = "xiaozhi"
@@ -116,6 +152,9 @@ class xiaozhi(DisplayPlugin):
         self.mqttc = None
         self.mac_addr = get_mac_address()
 
+        # 检测录音设备
+        self.audio_device = get_audio_capture_device()
+
         # 动画相关属性
         self.robot_offset_x = 0
         self.chatbox_offset_x = 0
@@ -127,7 +166,7 @@ class xiaozhi(DisplayPlugin):
         self.is_sleeping = False
 
         self.robot = RobotEmotion()
-        self.text_area = TextArea(font=self.font8,width=CHATBOX_WIDTH,line_spacing=4)
+        self.text_area = TextArea(font=self.font8,width=CHATBOX_WIDTH,height=height,line_spacing=4)
 
         # init keymap
         self.keymap = get_keymap()
@@ -142,21 +181,31 @@ class xiaozhi(DisplayPlugin):
         LOGGER.info("OTA version fetch started in background")
 
     def _get_ota_version(self):
-        header = {
-            'Device-Id': self.mac_addr,
-            'Content-Type': 'application/json'
-        }
-        post_data = {"flash_size": 16777216, "minimum_free_heap_size": 8318916, "mac_address": f"{self.mac_addr}",
-                "chip_model_name": "esp32s3", "chip_info": {"model": 9, "cores": 2, "revision": 2, "features": 18},
-                "application": {"name": "Muspi", "version": "0.9.9", "compile_time": "Jan 22 2025T20:40:23Z",
-                                "idf_version": "v5.3.2-dirty",
-                                "elf_sha256": "22986216df095587c42f8aeb06b239781c68ad8df80321e260556da7fcf5f522"}}
-        response = requests.post(OTA_VERSION_URL, headers=header, data=json.dumps(post_data))
-        LOGGER.debug(response.text)
-        response_json = response.json()
-        
-        self.mqtt_info = response_json['mqtt']
-        self._create_mqtt_client(self.mqtt_info)
+        try:
+            header = {
+                'Device-Id': self.mac_addr,
+                'Content-Type': 'application/json'
+            }
+            post_data = {"flash_size": 16777216, "minimum_free_heap_size": 8318916, "mac_address": f"{self.mac_addr}",
+                    "chip_model_name": "esp32s3", "chip_info": {"model": 9, "cores": 2, "revision": 2, "features": 18},
+                    "application": {"name": "Muspi", "version": "0.9.9", "compile_time": "Jan 22 2025T20:40:23Z",
+                                    "idf_version": "v5.3.2-dirty",
+                                    "elf_sha256": "22986216df095587c42f8aeb06b239781c68ad8df80321e260556da7fcf5f522"}}
+            
+            # LOGGER.info(f"request ota version with mac: \033[94m{self.mac_addr}\033[0m")
+            
+            response = requests.post(OTA_VERSION_URL, headers=header, data=json.dumps(post_data))
+            LOGGER.debug(response.text)
+            response_json = response.json()
+            
+            if 'mqtt' not in response_json:
+                    LOGGER.error(f"OTA response missing 'mqtt'.")
+                    return
+                
+            self.mqtt_info = response_json['mqtt']
+            self._create_mqtt_client(self.mqtt_info)
+        except Exception as e:
+            LOGGER.error(f"Failed to get OTA version and setup MQTT: {e}")
            
 
     def _create_mqtt_client(self, mqtt_config):
@@ -301,7 +350,7 @@ class xiaozhi(DisplayPlugin):
             # 使用arecord命令录制音频，使用设备采样率
             cmd = [
                 'arecord',
-                '-D', 'pulse' if USE_PULSE else 'hw:1,0',   # 指定USB音频设备
+                '-D', 'pulse' if USE_PULSE else self.audio_device,   # 使用检测到的音频设备
                 '-f', 'S16_LE',  # 16位小端
                 '-r', str(DEVICE_RATE),  # 使用设备采样率
                 '-c', '1',       # 单声道

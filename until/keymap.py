@@ -27,22 +27,22 @@ class KeyMap:
         """加载按键配置文件"""
         try:
             if not os.path.exists(self.config_path):
-                LOGGER.error(f"按键配置文件不存在: {self.config_path}")
+                LOGGER.error(f"keymap config file not found: {self.config_path}")
                 self.config = self._get_default_config()
                 return
 
             with open(self.config_path, 'r', encoding='utf-8') as f:
                 self.config = json.load(f)
 
-            LOGGER.info(f"成功加载按键配置: {self.config_path}")
+            LOGGER.info(f"keymap config loaded: {self.config_path}")
 
         except Exception as e:
-            LOGGER.error(f"加载按键配置失败: {e}")
+            LOGGER.error(f"load keymap config failed: {e}")
             self.config = self._get_default_config()
 
     def reload_config(self):
         """重新加载配置文件 (支持热更新)"""
-        LOGGER.info("重新加载按键配置...")
+        LOGGER.info("reload keymap config...")
         self.keycode_cache.clear()
         self.load_config()
 
@@ -51,9 +51,9 @@ class KeyMap:
         try:
             with open(self.config_path, 'w', encoding='utf-8') as f:
                 json.dump(self.config, f, ensure_ascii=False, indent=4)
-            LOGGER.info(f"按键配置已保存: {self.config_path}")
+            LOGGER.info(f"keymap config saved: {self.config_path}")
         except Exception as e:
-            LOGGER.error(f"保存按键配置失败: {e}")
+            LOGGER.error(f"save keymap config failed: {e}")
 
     def _get_default_config(self):
         """获取默认配置 (如果配置文件不存在)"""

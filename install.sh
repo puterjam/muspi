@@ -44,7 +44,7 @@ import json
 import sys
 
 # 读取示例配置
-with open('config/plugins_example.json', 'r', encoding='utf-8') as f:
+with open('config/plugins.example.json', 'r', encoding='utf-8') as f:
     config = json.load(f)
 
 # 从环境变量读取安装类型
@@ -121,6 +121,7 @@ step_install_minimal_deps() {
         tk8.6-dev \
         build-essential \
         git \
+        libdiscid-dev \
         liblgpio-dev \
         liblgpio1
 }

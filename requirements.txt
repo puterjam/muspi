@@ -5,14 +5,16 @@ Pillow>=10.0.0  # PIL 图像处理库
 roonapi>=0.1.6  # Roon API 客户端
 
 # 驱动相关
+luma.oled>=3.8.0  # OLED 显示屏驱动（SSD1305/SSD1306/SSD1309 等）
 evdev>=1.0.0  # 事件驱动设备库
 gpiozero>=1.0.0  # GPIO 库
 lgpio>=0.2.2.0  # 现代 GPIO 库 (推荐)
-smbus>=1.0.0  # I2C 库
+rpi-lgpio>=0.4  # RPi.GPIO 兼容层，支持 Raspberry Pi 5
+# smbus>=1.0.0  # I2C 库
+# smbus2>=0.4.1  # I2C 库
 spidev>=1.0.0  # SPI 库
-smbus2>=0.4.1  # I2C 库
 watchdog>=3.0.0  # 文件监控库
-RPi.GPIO>=0.7.0  # GPIO 库
+RPi.GPIO>=0.7.1  # GPIO 库
 
 # 音频与小智相关
 opuslib>=3.0.1  # Opus 音频库
@@ -23,3 +25,8 @@ paho-mqtt>=2.1.0  # MQTT 库
 musicbrainzngs>=0.7  # MusicBrainz 库
 cython>=0.29.36  # Cython 编译库
 python-libdiscid>=0.3.0  # DiscID 库
+
+# 游戏相关 pyarduboy
+libretro.py>=0.1.0      # LibRetro Python 绑定
+pyaudio>=0.2.11         # PyAudio 跨平台音频库（macOS/Windows/Linux）
+pyalsaaudio>=0.9.0;     # PyALSA 音频库（Linux）

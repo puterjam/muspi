@@ -39,17 +39,70 @@
 
 # add oled driver (luma.oled based)
 from drive.luma.ssd1305 import ssd1305
+from drive.luma.ssd1309 import ssd1309
 
 # add Display Manager
 from screen.manager import DisplayManager
-
+from until.log import LOGGER
 # add screen plugins
 from screen.plugin import PluginManager
 
 
+import json
+import os
+
+
+def load_display_config():
+    """加载显示配置"""
+    config_path = os.path.join(os.path.dirname(__file__), 'config', 'muspi.json')
+
+    if os.path.exists(config_path):
+        with open(config_path, 'r', encoding='utf-8') as f:
+            config = json.load(f)
+            return config.get('display', {})
+
+    # 默认配置
+    return {
+        'driver': 'ssd1309',
+        'width': 128,
+        'height': 64,
+        'rotate': 0
+    }
+
+
+def detect_display():
+    """
+    检测显示设备并返回设备实例
+    如果检测失败，从配置文件读取设置
+    """
+    config = load_display_config()
+    driver = config.get('driver', 'ssd1309')
+    width = config.get('width', 128)
+    height = config.get('height', 64)
+    rotate = config.get('rotate', 0)
+
+    LOGGER.info(f"try init display device: {driver} ({width}x{height}, rotate={rotate})")
+
+    try:
+        if driver == 'ssd1309':
+            device = ssd1309(width=width, height=height, rotate=rotate)
+        elif driver == 'ssd1305':
+            device = ssd1305(width=width, height=height, rotate=rotate)
+        else:
+            raise ValueError(f"unsupported driver: {driver}")
+
+        LOGGER.info(f"✓ display device init success: {device.width}x{device.height}")
+        return device
+
+    except Exception as e:
+        LOGGER.error(f"✗ display device init failed: {e}")
+        raise
+
+
 def main():
-    device = ssd1305(rotate=2)
-    
+    # 检测并初始化显示设备
+    device = detect_display()
+
     # init manager
     manager = DisplayManager(device=device)
 
