@@ -41,6 +41,12 @@
             "enabled": false,
             "auto_hide": false,
             "config": {}
+        },
+        {
+            "name": "matrix",
+            "enabled": true,
+            "auto_hide": false,
+            "config": {}
         }
     ]
 }

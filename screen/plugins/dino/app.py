@@ -5,8 +5,6 @@ from until.keymap import get_keymap
 
 # 游戏参数
 WIDTH = 128
-HEIGHT = 32
-GROUND_Y = 31 # 稍微调整地面位置以适应新的恐龙高度
 DINO_WIDTH = 20
 DINO_HEIGHT = 22
 OBSTACLE_WIDTH = 4
@@ -117,6 +115,14 @@ CACTUS_SPRITE_6 = [
 
 GAME_FPS = 25.0
 
+# 云朵精灵图
+CLOUD_SPRITE = [
+    [0,0,1,1,1,1,0,0,0,0],
+    [0,1,1,1,1,1,1,1,0,0],
+    [1,1,1,1,1,1,1,1,1,0],
+    [1,1,1,1,1,1,1,1,1,1],
+]
+
 def get_dino_sprite(type):
     # 选择头部
     head = DINO_HEAD1 if type in [1, 2] else DINO_HEAD2
@@ -131,9 +137,10 @@ def get_dino_sprite(type):
     return sprite
 
 class DinoGame:
-    def __init__(self):
+    def __init__(self, ground_y):
+        self.ground_y = ground_y
         self.x = 10
-        self.y = GROUND_Y - DINO_HEIGHT
+        self.y = self.ground_y - DINO_HEIGHT
         self.velocity = 0
         self.is_jumping = False
         self.leg_state = 0
@@ -149,14 +156,14 @@ class DinoGame:
     def update(self):
         if self.is_crashed:  # 碰撞后不更新位置
             return
-            
+
         self.velocity += GRAVITY
         self.y += self.velocity
-        if self.y > GROUND_Y - DINO_HEIGHT:
-            self.y = GROUND_Y - DINO_HEIGHT
+        if self.y > self.ground_y - DINO_HEIGHT:
+            self.y = self.ground_y - DINO_HEIGHT
             self.velocity = 0
             self.is_jumping = False
-        
+
         if not self.is_jumping:
             self.leg_timer += 1
             if self.leg_timer >= self.animation_speed:
@@ -181,7 +188,8 @@ class DinoGame:
 
 
 class Obstacle:
-    def __init__(self):
+    def __init__(self, ground_y):
+        self.ground_y = ground_y
         self.x = WIDTH
         self.height = random.randint(OBSTACLE_MIN_HEIGHT, OBSTACLE_MAX_HEIGHT)
         # 根据高度选择最接近的仙人掌图案
@@ -194,7 +202,7 @@ class Obstacle:
         else:
             self.height = 6
             self.sprite = CACTUS_SPRITE_6
-        self.y = GROUND_Y - self.height
+        self.y = self.ground_y - self.height
         self.width = OBSTACLE_WIDTH
         self.speed = 3
 
@@ -209,6 +217,24 @@ class Obstacle:
                 if self.sprite[i][j]:
                     draw.point((int(self.x) + j, int(self.y) + i), fill=255)
 
+class Cloud:
+    def __init__(self, height):
+        self.x = WIDTH + random.randint(0, 50)
+        self.y = random.randint(4, max(5, height // 3))  # 云朵在屏幕上方1/3区域
+        self.width = 10
+        self.height = 4
+        self.speed = 0.5
+
+    def update(self):
+        self.x -= self.speed
+        return self.x < -self.width
+
+    def draw(self, draw):
+        for i in range(self.height):
+            for j in range(self.width):
+                if CLOUD_SPRITE[i][j]:
+                    draw.point((int(self.x) + j, int(self.y) + i), fill=255)
+
 # 恐龙游戏显示类
 class dino(DisplayPlugin):
     def __init__(self, manager, width, height):
@@ -217,11 +243,14 @@ class dino(DisplayPlugin):
         self.framerate = GAME_FPS
          # 30fps = 33.33ms 每帧
         self.keymap = get_keymap()
+        self.screen_height = height
+        self.ground_y = height - 1  # 地面在底部
         self.reset_game()
-        
+
     def reset_game(self, player="AI"):
-        self.dino = DinoGame()
+        self.dino = DinoGame(self.ground_y)
         self.obstacles = []
+        self.clouds = [] if self.screen_height > 32 else None  # 只有高度超过32才有云
         self.score = 0
         self.game_over = False
         self.last_jump_time = 0
@@ -254,7 +283,13 @@ class dino(DisplayPlugin):
     def spawn_obstacle(self):
         # 根据帧数调整障碍物生成
         if random.random() < 0.03 and (not self.obstacles or self.obstacles[-1].x < WIDTH - 50):  # 将最小距离从40增加到50
-            self.obstacles.append(Obstacle())
+            self.obstacles.append(Obstacle(self.ground_y))
+
+    def spawn_cloud(self):
+        # 只有当高度超过32且云数量少于3时才生成
+        if self.clouds is not None and len(self.clouds) < 3:
+            if random.random() < 0.01:  # 较低的生成概率
+                self.clouds.append(Cloud(self.screen_height))
 
     def check_collision(self):
         dino_rect = (self.dino.x, self.dino.y, 
@@ -273,7 +308,7 @@ class dino(DisplayPlugin):
 
     def update_object(self):
         current_time = time.time()
-        
+
         # 如果游戏结束且已经过去5秒，重新开始游戏
         if self.game_over:
             if current_time - self.game_over_time >= 5:
@@ -281,21 +316,26 @@ class dino(DisplayPlugin):
             return
 
         self.frame_count += 1
-        
+
         if current_time - self.last_score_update >= 0.1:
             self.score += 1
             self.last_score_update = current_time
 
         self.dino.update()
         self.spawn_obstacle()
-        
+        self.spawn_cloud()
+
         if not self.dino.is_crashed:
             if self.player == "AI":
                 self.ai_decision()
-        
+
         # 更新障碍物
         self.obstacles = [obs for obs in self.obstacles if not obs.update()]
-        
+
+        # 更新云朵
+        if self.clouds is not None:
+            self.clouds = [cloud for cloud in self.clouds if not cloud.update()]
+
         # 检查碰撞
         if self.check_collision():
             self.game_over = True
@@ -303,10 +343,15 @@ class dino(DisplayPlugin):
 
     def draw_game(self):
         draw = self.canvas
-        draw.rectangle((0, 0, WIDTH, HEIGHT), fill=0)
+        draw.rectangle((0, 0, WIDTH, self.height), fill=0)
         
         # 绘制地面
-        draw.line((0, GROUND_Y, WIDTH, GROUND_Y), fill=255)
+        draw.line((0, self.ground_y, WIDTH, self.ground_y), fill=255)
+        
+        # 绘制云朵
+        if self.clouds is not None:
+            for cloud in self.clouds:
+                cloud.draw(draw)
         
         # 绘制恐龙
         self.dino.draw(draw)
@@ -330,7 +375,7 @@ class dino(DisplayPlugin):
             text_height = text_bbox[3] - text_bbox[1]
             # 绘制黑色文本
             text_x = WIDTH//2 - text_width//2+8
-            text_y = HEIGHT//2 - text_height//2-4
+            text_y = self.height//2 - text_height//2-4
             draw.text((text_x, text_y), game_over_text, fill=255, font=self.font8)
             
         if self.game_over:
@@ -343,21 +388,21 @@ class dino(DisplayPlugin):
             # 绘制白色背景框（比文本稍大一些）
             padding = 4
             box_left = WIDTH//2 - text_width//2 - padding + 4
-            box_top = HEIGHT//2 - text_height//2 - padding - 4
+            box_top = self.height//2 - text_height//2 - padding - 4
             box_right = WIDTH//2 + text_width//2 + padding + 2
-            box_bottom = HEIGHT//2 + text_height//2 + padding - 8
+            box_bottom = self.height//2 + text_height//2 + padding - 8
             draw.rectangle((box_left, box_top, box_right, box_bottom), fill=0)
             
             # 绘制黑色文本
             text_x = WIDTH//2 - text_width//2 + 4
-            text_y = HEIGHT//2 - text_height//2 - 8
+            text_y = self.height//2 - text_height//2 - 8
             draw.text((text_x, text_y), game_over_text, fill=255, font=self.font8)
             
             # 显示重启倒计时
             remaining = 5 - int(time.time() - self.game_over_time)
             if remaining > 0:
-                draw.rectangle((WIDTH//2-1, HEIGHT//2+2, WIDTH//2+10, HEIGHT//2+10), fill=0)
-                draw.text((WIDTH//2+1, HEIGHT//2), f"{remaining}s", fill=255, font=self.font8)
+                draw.rectangle((WIDTH//2-1, self.height//2+2, WIDTH//2+10, self.height//2+10), fill=0)
+                draw.text((WIDTH//2+1, self.height//2), f"{remaining}s", fill=255, font=self.font8)
                 
     def render(self):
         self.update_object()
