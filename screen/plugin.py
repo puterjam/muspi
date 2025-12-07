@@ -1,4 +1,5 @@
 import importlib
+from pathlib import Path
 from until.log import LOGGER
 from screen.manager import DisplayManager
 from until.config import config
@@ -12,6 +13,7 @@ class PluginManager:
         self.manager = manager
         self.plugin_classes = {}
         self.plugin_modules = {}  # 缓存已加载的模块
+        self.plugin_paths = {}  # 缓存插件路径
         self.config = config.open(CONFIG_PATH)
 
     def _load_plugin_module(self, plugin_name):
@@ -19,31 +21,35 @@ class PluginManager:
         动态加载插件模块
 
         :param plugin_name: 插件名称（如 'xiaozhi'）
-        :return: 加载的模块对象
+        :return: (module, work_path) 元组
         """
         # 如果已经加载过，直接返回缓存
         if plugin_name in self.plugin_modules:
-            return self.plugin_modules[plugin_name]
+            return self.plugin_modules[plugin_name], self.plugin_paths[plugin_name]
 
         try:
             # 构建模块路径
             module_path = f"screen.plugins.{plugin_name.lower()}.app"
 
+            # 构建工作路径
+            work_path = f"screen/plugins/{plugin_name.lower()}"
+
             # 动态导入模块
             LOGGER.info(f"Loading plugin module: \033[94m{module_path.replace('screen.plugins.', '')}\033[0m")
             module = importlib.import_module(module_path)
 
-            # 缓存模块
+            # 缓存模块和路径
             self.plugin_modules[plugin_name] = module
+            self.plugin_paths[plugin_name] = work_path
 
-            return module
+            return module, work_path
 
         except ImportError as e:
             LOGGER.error(f"Failed to import plugin module '{module_path}': {e}")
-            return None
+            return None, None
         except Exception as e:
             LOGGER.error(f"Unexpected error loading plugin '{plugin_name}': {e}")
-            return None
+            return None, None
 
     def load(self):
         """
@@ -71,7 +77,7 @@ class PluginManager:
 
             try:
                 # 动态加载模块
-                module = self._load_plugin_module(plugin_name)
+                module, work_path = self._load_plugin_module(plugin_name)
                 if module is None:
                     failed_count += 1
                     continue

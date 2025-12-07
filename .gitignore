@@ -48,3 +48,9 @@ Thumbs.db
 config/cd/
 ._=3.0.0
 ._=3.0.0
+roon.json
+
+
+# Gameboy ignore files
+screen/plugins/gameboy/retro/thumbnails/*
+screen/plugins/gameboy/roms/*

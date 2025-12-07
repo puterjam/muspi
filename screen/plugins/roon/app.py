@@ -1,3 +1,4 @@
+import os
 import time
 import threading
 import queue
@@ -14,9 +15,12 @@ from until.keymap import get_keymap
 # config path
 CONFIG_PATH = "config/roon.json"
 
+# Get system node name
+uname = os.uname()
+
 ROON_PLUGIN_INFO = {
-    "extension_id": "Muspi_Extension",
-    "display_name": "Muspi Roon Extension",
+    "extension_id": f"Muspi_{uname.nodename}_Extension",
+    "display_name": f"Muspi @ {uname.sysname} {uname.nodename} {uname.release}",
     "display_version": "1.0",
     "publisher": "Muspi",
     "email": "puterjam@gmail.com",
@@ -52,7 +56,7 @@ class roon(DisplayPlugin):
             # initialize Roon
             try:
                 # load core_id and token from config file
-                config_data = config.open(CONFIG_PATH)
+                config_data = config.open(self.work_path / CONFIG_PATH)
                 self.core_id = config_data["core_id"]
                 self.token = config_data["token"]
             except Exception:
@@ -75,7 +79,11 @@ class roon(DisplayPlugin):
                 LOGGER.info(f"Roon initialized in \033[1m\033[32m{self.roon.core_name}\033[0m.")
 
                 # Save the token for next time
-                config.save(CONFIG_PATH, {
+                # Create directory if it doesn't exist
+                config_path = self.work_path / CONFIG_PATH
+                config_path.parent.mkdir(parents=True, exist_ok=True)
+
+                config.save(config_path, {
                     "core_id": self.roon.core_id,
                     "token": self.roon.token
                 })       

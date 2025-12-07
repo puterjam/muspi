@@ -1,23 +1,34 @@
 from abc import ABC, abstractmethod
+from pathlib import Path
 from PIL import Image, ImageDraw
 from until.log import LOGGER
 from screen.manager import FONTS
 
-DEFAULT_FPS = 8.0 
+DEFAULT_FPS = 8.0
 
 class DisplayPlugin(ABC):
     """Base class for display plugins"""
-    
+
     def __init__(self, manager, width, height):
-        """Initialize the display plugin"""
+        """Initialize the display plugin
+
+        Args:
+            manager: DisplayManager instance
+            width: Display width
+            height: Display height
+        """
         # Manager
         self.manager = manager
         self.width = width
         self.height = height
-        
-        
+
+
         # ID
         self.name = self.name or "base"
+
+        # Work path - plugin's directory path (calculated from plugin name)
+        # e.g., for clock plugin: Path("screen/plugins/clock")
+        self.work_path = Path(f"screen/plugins/{self.name}")
         
         # Image Buffer
         self.image = Image.new('1', (width, height))
@@ -54,6 +65,14 @@ class DisplayPlugin(ABC):
     def is_playing(self):
         """check if the plugin is playing"""
         pass
+
+    def wants_exclusive_input(self) -> bool:
+        """
+        是否需要独占输入（例如游戏插件需要方向键）
+
+        返回 True 时，DisplayManager 不会用导航键处理全局功能
+        """
+        return False
 
     def get_active(self):
         """check if the plugin should be activated"""

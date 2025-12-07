@@ -14,13 +14,13 @@
         },
         {
             "name": "dino",
-            "enabled": true,
+            "enabled": false,
             "auto_hide": false,
             "config": {}
         },
         {
             "name": "life",
-            "enabled": true,
+            "enabled": false,
             "auto_hide": false,
             "config": {}
         },
@@ -32,7 +32,7 @@
         },
         {
             "name": "roon",
-            "enabled": false,
+            "enabled": true,
             "auto_hide": false,
             "config": {}
         },
@@ -44,6 +44,12 @@
         },
         {
             "name": "matrix",
+            "enabled": true,
+            "auto_hide": false,
+            "config": {}
+        },
+        {
+            "name": "gameboy",
             "enabled": true,
             "auto_hide": false,
             "config": {}

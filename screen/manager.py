@@ -196,20 +196,40 @@ class DisplayManager:
         key_nav_up = self.keymap.nav_up
         key_nav_down = self.keymap.nav_down
 
-        # Check if it's a volume key
-        is_volume_up = self.keymap.match(key_volume_up, key_nav_up)
-        is_volume_down = self.keymap.match(key_volume_down, key_nav_down)
-        is_volume_mute = self.keymap.match(key_volume_mute)
+        keycode = evt.code
+        active_plugin = self.last_active
+        exclusive_nav = bool(
+            active_plugin and hasattr(active_plugin, "wants_exclusive_input")
+            and active_plugin.wants_exclusive_input()
+        )
+
+        # 判断按键类别
+        nav_left = keycode in key_nav_left
+        nav_right = keycode in key_nav_right
+        nav_up = keycode in key_nav_up
+        nav_down = keycode in key_nav_down
+        next_screen_key = keycode in key_next_screen
+        prev_screen_key = keycode in key_previous_screen
+        volume_up_key = keycode in key_volume_up
+        volume_down_key = keycode in key_volume_down
+        is_volume_mute = keycode in key_volume_mute
+
+        # 方向键在独占模式下不会触发全局操作
+        allow_nav_for_screen = not exclusive_nav
+        allow_nav_for_volume = not exclusive_nav
+
+        is_volume_up = volume_up_key or (allow_nav_for_volume and nav_up)
+        is_volume_down = volume_down_key or (allow_nav_for_volume and nav_down)
 
         if evt.value == 1:  # key down
             if self.sleep:
                 self.turn_on_screen()
             else:
                 # Screen switching: next_screen/previous_screen or left/right
-                if self.keymap.match(key_next_screen, key_nav_right):
+                if next_screen_key or (allow_nav_for_screen and nav_right):
                     self.active_next()
 
-                if self.keymap.match(key_previous_screen, key_nav_left):
+                if prev_screen_key or (allow_nav_for_screen and nav_left):
                     self.active_prev()
 
                 # Volume adjustment on initial press
@@ -334,6 +354,7 @@ class DisplayManager:
             logo_size=(24, 24),
         )
         self.disp.display(welcome_image)
+        time.sleep(1)
 
     def reset_sleep_timer(self):
         self.sleep_count = time.time()

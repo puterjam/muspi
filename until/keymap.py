@@ -236,7 +236,12 @@ class KeyMap:
     def action_menu(self):
         """获取菜单键 (切换插件、菜单等)"""
         return self.get_key("action", "menu")
-
+    
+    @property
+    def action_screenshot(self):
+        """获取截图键"""
+        return self.get_key("action", "screenshot")
+    
     @property
     def action_next(self):
         """获取下一屏键"""

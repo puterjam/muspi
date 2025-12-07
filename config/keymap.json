@@ -25,7 +25,8 @@
             "cancel": ["KEY_ESC"],
             "next_screen": ["KEY_PAGEDOWN"],
             "previous_screen": ["KEY_PAGEUP"],
-            "menu": ["KEY_M"]
+            "menu": ["KEY_M"],
+            "screenshot": ["KEY_F12"]
         },
 
         "media": {
@@ -42,7 +43,8 @@
         "_usage_note": {
             "select": "确定键 - 用于确认操作、播放/暂停、跳跃等",
             "cancel": "取消键 - 用于取消操作、下一曲、切换视图等",
-            "menu": "菜单键 - 用于切换插件、打开菜单等"
+            "menu": "菜单键 - 用于切换插件、打开菜单等",
+            "screenshot": "截图键 - 用于截取当前屏幕内容"
         }
     },
 
