@@ -83,14 +83,14 @@ def get_current_volume(control):
         if match:
             db = float(match.group(1))
             volume = db_to_volume(db)
-            LOGGER.info(f"[{control}] volume: {volume}% ({db}dB)")
+            # LOGGER.info(f"[{control}] volume: {volume}% ({db}dB)")
             return (db, True)
 
         # If no dB format, try percentage format (PulseAudio)
         match = re.search(r'\[(\d+)%\]', out)
         if match:
             percent = int(match.group(1))
-            LOGGER.info(f"[{control}] volume: {percent}%")
+            # LOGGER.info(f"[{control}] volume: {percent}%")
             return (percent, False)
 
     except Exception as e:
@@ -205,8 +205,8 @@ def toggle_mute():
             LOGGER.error(f"Toggle mute for {control} failed: {e}")
             return None
 
-    if mute_status is not None:
-        LOGGER.info(f"🔇 Mute: {mute_status}")
+    # if mute_status is not None:
+    #     LOGGER.info(f"🔇 Mute: {mute_status}")
 
     return mute_status
 

@@ -288,6 +288,92 @@ class KeyMap:
         """获取静音键"""
         return self.get_key("media", "mute")
 
+    # 手柄按键
+    @property
+    def gamepad_up(self):
+        """获取手柄上方向键"""
+        return self.get_key("gamepad", "up")
+
+    @property
+    def gamepad_down(self):
+        """获取手柄下方向键"""
+        return self.get_key("gamepad", "down")
+
+    @property
+    def gamepad_left(self):
+        """获取手柄左方向键"""
+        return self.get_key("gamepad", "left")
+
+    @property
+    def gamepad_right(self):
+        """获取手柄右方向键"""
+        return self.get_key("gamepad", "right")
+
+    @property
+    def gamepad_a(self):
+        """获取手柄A键"""
+        return self.get_key("gamepad", "a")
+
+    @property
+    def gamepad_b(self):
+        """获取手柄B键"""
+        return self.get_key("gamepad", "b")
+
+    @property
+    def gamepad_x(self):
+        """获取手柄X键"""
+        return self.get_key("gamepad", "x")
+
+    @property
+    def gamepad_y(self):
+        """获取手柄Y键"""
+        return self.get_key("gamepad", "y")
+
+    @property
+    def gamepad_tl(self):
+        """获取手柄TL键（左扳机上键）"""
+        return self.get_key("gamepad", "tl")
+
+    @property
+    def gamepad_tr(self):
+        """获取手柄TR键（右扳机上键）"""
+        return self.get_key("gamepad", "tr")
+
+    @property
+    def gamepad_lb(self):
+        """获取手柄LB键（左肩键）"""
+        return self.get_key("gamepad", "lb")
+
+    @property
+    def gamepad_rb(self):
+        """获取手柄RB键（右肩键）"""
+        return self.get_key("gamepad", "rb")
+
+    @property
+    def gamepad_thumb(self):
+        """获取手柄摇杆按键"""
+        return self.get_key("gamepad", "thumb")
+
+    @property
+    def gamepad_select(self):
+        """获取手柄SELECT键"""
+        return self.get_key("gamepad", "select")
+
+    @property
+    def gamepad_start(self):
+        """获取手柄START键"""
+        return self.get_key("gamepad", "start")
+
+    @property
+    def gamepad_screenshot(self):
+        """获取手柄截图键"""
+        return self.get_key("gamepad", "screenshot")
+
+    @property
+    def gamepad_mode(self):
+        """获取手柄MODE键"""
+        return self.get_key("gamepad", "mode")
+
     # def print_current_mapping(self):
     #     """打印当前按键映射 (调试用)"""
     #     LOGGER.info("=== 当前全局按键映射 ===")

@@ -38,6 +38,16 @@ class KeyListener(threading.Thread):
         self.callbacks = []
         self.observer = Observer()  # 创建 Observer
         self.event_handler = DeviceChangeHandler(self)  # 创建事件处理器
+
+    def _event_name(self, event):
+        """Return human readable name for key or axis events."""
+        try:
+            name = ecodes.bytype[event.type][event.code]
+            if isinstance(name, tuple):
+                return name[0]
+            return name
+        except (KeyError, IndexError):
+            return f"UNKNOWN_{event.code}"
         
     def on(self, callback):
         """add callback function"""
@@ -94,8 +104,8 @@ class KeyListener(threading.Thread):
                 r, w, x = select.select(self.devices, [], [], 0.1)
                 for device in r:
                     for event in device.read():
-                        if event.type == ecodes.EV_KEY:
-                            key_name = ecodes.KEY[event.code]
+                        if event.type == ecodes.EV_KEY or event.type == ecodes.EV_ABS:
+                            key_name = self._event_name(event)
                             LOGGER.debug(f"{device.name} - key down {key_name}")
 
                             # call all registered callbacks

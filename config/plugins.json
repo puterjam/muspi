@@ -44,13 +44,19 @@
         },
         {
             "name": "matrix",
-            "enabled": true,
+            "enabled": false,
             "auto_hide": false,
             "config": {}
         },
         {
             "name": "gameboy",
             "enabled": true,
+            "auto_hide": false,
+            "config": {}
+        },
+        {
+            "name": "spectrum",
+            "enabled": false,
             "auto_hide": false,
             "config": {}
         }

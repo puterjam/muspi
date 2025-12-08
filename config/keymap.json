@@ -21,8 +21,8 @@
 
         "action": {
             "_comment": "功能操作按键",
-            "select": ["KEY_SPACE"],
-            "cancel": ["KEY_ESC"],
+            "select": ["KEY_Z"],
+            "cancel": ["KEY_X"],
             "next_screen": ["KEY_PAGEDOWN"],
             "previous_screen": ["KEY_PAGEUP"],
             "menu": ["KEY_M"],
@@ -38,6 +38,26 @@
             "volume_up": ["KEY_VOLUMEUP"],
             "volume_down": ["KEY_VOLUMEDOWN"],
             "mute": ["KEY_MUTE"]
+        },
+
+        "gamepad":{
+            "up": ["BTN_DPAD_UP", "ABS_HAT0Y"],
+            "down": ["BTN_DPAD_DOWN", "ABS_HAT0Y"],
+            "left": ["BTN_DPAD_LEFT", "ABS_HAT0X"],
+            "right": ["BTN_DPAD_RIGHT", "ABS_HAT0X"],
+            "a": ["BTN_A"],
+            "b": ["BTN_B"],
+            "x": ["BTN_X"],
+            "y": ["BTN_Y"],
+            "tl": ["BTN_TL"],
+            "tr": ["BTN_TR"],
+            "lb": ["BTN_LB"],
+            "rb": ["BTN_RB"],
+            "thumb": ["BTN_THUMBL", "BTN_THUMBR"],
+            "select": ["BTN_SELECT"],
+            "start": ["BTN_START"],
+            "screenshot": ["KEY_RECORD"],
+            "mode": ["BTN_MODE"]
         },
 
         "_usage_note": {

@@ -224,14 +224,15 @@ class DisplayManager:
         prev_screen_key = keycode in key_previous_screen
         volume_up_key = keycode in key_volume_up
         volume_down_key = keycode in key_volume_down
-        is_volume_mute = keycode in key_volume_mute
+       
 
         # 方向键在独占模式下不会触发全局操作
         allow_nav_for_screen = not exclusive_nav
         allow_nav_for_volume = not exclusive_nav
 
-        is_volume_up = volume_up_key or (allow_nav_for_volume and nav_up)
-        is_volume_down = volume_down_key or (allow_nav_for_volume and nav_down)
+        is_volume_up = volume_up_key
+        is_volume_down = volume_down_key
+        is_volume_mute = keycode in key_volume_mute
 
         if evt.value == 1:  # key down
             if self.sleep:

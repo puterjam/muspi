@@ -157,6 +157,12 @@ class gameboy(DisplayPlugin):
             "down": False,
         }
 
+        # 模拟轴状态追踪（用于防抖）
+        self._axis_state = {
+            "ABS_HAT0Y": 0,
+            "ABS_HAT0X": 0,
+        }
+
         self.arduboy: Optional[PyArduboy] = None
         self._audio_driver = None
         self._worker: Optional[threading.Thread] = None
@@ -230,9 +236,54 @@ class gameboy(DisplayPlugin):
     # ------------------------------------------------------------------ #
     # muspi输入处理
 
+    def _handle_axis_input(self, evt):
+        """处理模拟轴输入（ABS_HAT0Y, ABS_HAT0X）"""
+        from evdev import ecodes
+
+        if evt.type != ecodes.EV_ABS:
+            return
+
+        # ABS_HAT0Y: 上下轴 (-1=上, 1=下, 0=居中)
+        if evt.code == ecodes.ABS_HAT0Y:
+            LOGGER.info(f"ABS_HAT0Y: {evt.value}")
+            prev_value = self._axis_state["ABS_HAT0Y"]
+            self._axis_state["ABS_HAT0Y"] = evt.value
+
+            if evt.value == -1:  # 向上
+                if self._show_menu and prev_value != -1:  # 仅在状态改变时触发菜单导航
+                    self._change_selection(-1)
+                self._set_button_state("up", True)
+                self._set_button_state("down", False)
+            elif evt.value == 1:  # 向下
+                if self._show_menu and prev_value != 1:  # 仅在状态改变时触发菜单导航
+                    self._change_selection(1)
+                self._set_button_state("down", True)
+                self._set_button_state("up", False)
+            else:  # 居中
+                self._set_button_state("up", False)
+                self._set_button_state("down", False)
+
+        # ABS_HAT0X: 左右轴 (-1=左, 1=右, 0=居中)
+        elif evt.code == ecodes.ABS_HAT0X:
+            LOGGER.info(f"ABS_HAT0X: {evt.value}")
+            self._axis_state["ABS_HAT0X"] = evt.value
+
+            if evt.value == -1:  # 向左
+                self._set_button_state("left", True)
+                self._set_button_state("right", False)
+            elif evt.value == 1:  # 向右
+                self._set_button_state("right", True)
+                self._set_button_state("left", False)
+            else:  # 居中
+                self._set_button_state("left", False)
+                self._set_button_state("right", False)
+
     def key_callback(self, evt):
         pressed = evt.value != 0
         keycode = evt.code
+
+        # 处理模拟轴事件（ABS_HAT0Y, ABS_HAT0X）
+        self._handle_axis_input(evt)
 
         # 菜单模式下的按键处理
         if self._show_menu:
@@ -255,20 +306,23 @@ class gameboy(DisplayPlugin):
         if self._check_screenshot_combo():
             self._take_screenshot()
 
+        # 按键映射：支持键盘和手柄
         mapping = (
-            ("up", self.keymap.nav_up),
-            ("down", self.keymap.nav_down),
-            ("left", self.keymap.nav_left),
-            ("right", self.keymap.nav_right),
-            ("a", self.keymap.action_select),
-            ("b", self.keymap.action_cancel),
-            ("start", self.keymap.action_menu),
-            ("select", self.keymap.media_play_pause),
+            ("up", [self.keymap.nav_up]),
+            ("down", [self.keymap.nav_down]),
+            ("left", [self.keymap.nav_left]),
+            ("right", [self.keymap.nav_right]),
+            ("a", [self.keymap.action_select, self.keymap.gamepad_a]),
+            ("b", [self.keymap.action_cancel, self.keymap.gamepad_b]),
+            ("start", [self.keymap.action_menu, self.keymap.gamepad_start]),
+            ("select", [self.keymap.media_play_pause, self.keymap.gamepad_select]),
         )
 
-        for button, key_list in mapping:
-            if key_list and keycode in key_list:
-                self._set_button_state(button, pressed)
+        for button, key_lists in mapping:
+            for key_list in key_lists:
+                if key_list and keycode in key_list:
+                    self._set_button_state(button, pressed)
+                    break
 
         # media_stop 作为快速复位
         if self.keymap.media_stop and keycode in self.keymap.media_stop and evt.value == 1:
@@ -480,7 +534,9 @@ class gameboy(DisplayPlugin):
             LOGGER.warning("ROM directory does not exist -> %s", roms_dir)
             return []
 
-        rom_list = sorted(roms_dir.glob("*.hex"))
+        hex_files = list(roms_dir.glob("*.hex"))
+        arduboy_files = list(roms_dir.glob("*.arduboy"))
+        rom_list = sorted(hex_files + arduboy_files)
         LOGGER.info("Found %d ROM files", len(rom_list))
         return rom_list
 
@@ -521,8 +577,8 @@ class gameboy(DisplayPlugin):
         if core_name_setting:
             core_names = [core_name_setting]
         else:
-            # 默认优先级：arduous > ardens > gearboy
-            core_names = ["arduous", "ardens", "gearboy"]
+            # 默认优先级：arduous > gearboy
+            core_names = ["ardens", "gearboy"]
 
         # 查找核心文件
         lib_ext = "so" if platform.system() == "Linux" else ("dylib" if platform.system() == "Darwin" else "dll")
@@ -751,7 +807,7 @@ class gameboy(DisplayPlugin):
             self,
             "_menu_slide_offset",
             0.0,
-            duration=0.25,
+            duration=2,
             operator=Operator.ease_out_cubic,
         )
         self._scrollbar_last_move = time.time()
@@ -835,7 +891,7 @@ class gameboy(DisplayPlugin):
         if rom_count <= 1:
             slider_height = track_range
         else:
-            slider_height = max(10, int(track_range / rom_count))
+            slider_height = max(6, int(track_range / rom_count))
         slider_height = min(track_range, slider_height)
 
         if rom_count <= 1:
@@ -859,14 +915,15 @@ class gameboy(DisplayPlugin):
         if not self._rom_list:
             return
 
-        # 上下导航
-        if self.keymap.nav_up and keycode in self.keymap.nav_up:
+        # 上下导航（键盘 + 手柄）
+        if (self.keymap.nav_up and keycode in self.keymap.nav_up):
             self._change_selection(-1)
-        elif self.keymap.nav_down and keycode in self.keymap.nav_down:
+        elif (self.keymap.nav_down and keycode in self.keymap.nav_down):
             self._change_selection(1)
 
-        # 选择游戏（action_select）
-        elif self.keymap.action_select and keycode in self.keymap.action_select:
+        # 选择游戏（action_select + 手柄A键）
+        elif (self.keymap.action_select and keycode in self.keymap.action_select) or \
+             (self.keymap.gamepad_a and keycode in self.keymap.gamepad_a):
             self._load_selected_game()
 
     def _load_selected_game(self):
