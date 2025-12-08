@@ -14,5 +14,8 @@
       "dc": 25,
       "rst": 27
     }
+  },
+  "path": {
+    "user": "~/.local/share/muspi"
   }
 }

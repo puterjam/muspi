@@ -95,11 +95,23 @@ class DisplayManager:
 
         # initialize plugins
         self.plugins = []
+        self.path = {
+            "user": Path("~/.local/share/muspi"),
+        }
 
         # register signal handler
         signal.signal(signal.SIGTERM, self._signal_handler)
         signal.signal(signal.SIGINT, self._signal_handler)
 
+    def set_path(self, key, path):
+        p = Path(path).expanduser()
+        self.path[key] = p
+        self.path[key].mkdir(parents=True, exist_ok=True)
+        LOGGER.info(f"set {key} path to {p}")
+    
+    def get_path(self, key):
+        return self.path[key]
+        
     def add_plugin(self, plugin, auto_hide=False):
         id = len(self.plugins)
         plugin_instance = plugin(self, self.disp.width, self.disp.height)

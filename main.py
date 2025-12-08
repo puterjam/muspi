@@ -52,22 +52,17 @@ import json
 import os
 
 
-def load_display_config():
-    """加载显示配置"""
+def load_config(key,default={}):
+    """加载配置"""
     config_path = os.path.join(os.path.dirname(__file__), 'config', 'muspi.json')
 
     if os.path.exists(config_path):
         with open(config_path, 'r', encoding='utf-8') as f:
             config = json.load(f)
-            return config.get('display', {})
+            return config.get(key, default)
 
     # 默认配置
-    return {
-        'driver': 'ssd1309',
-        'width': 128,
-        'height': 64,
-        'rotate': 0
-    }
+    return default
 
 
 def detect_display():
@@ -75,12 +70,13 @@ def detect_display():
     检测显示设备并返回设备实例
     如果检测失败，从配置文件读取设置
     """
-    config = load_display_config()
+    config = load_config("display")
+    
     driver = config.get('driver', 'ssd1309')
     width = config.get('width', 128)
     height = config.get('height', 64)
     rotate = config.get('rotate', 0)
-
+    
     LOGGER.info(f"try init display device: {driver} ({width}x{height}, rotate={rotate})")
 
     try:
@@ -100,12 +96,18 @@ def detect_display():
 
 
 def main():
+    # 加载配置
+    config = load_config("path",{})
+    
+    user_path = config.get('user','/var/lib/muspi')
+
     # 检测并初始化显示设备
     device = detect_display()
 
     # init manager
     manager = DisplayManager(device=device)
-
+    manager.set_path("user", user_path)
+    
     # create plugin manager
     plugin = PluginManager(manager)
     

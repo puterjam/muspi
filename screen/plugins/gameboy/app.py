@@ -110,7 +110,7 @@ class gameboy(DisplayPlugin):
             self._retro_path = Path(retro_path_config).expanduser()
         else:
             # 默认使用插件目录下的 retro/ 子目录
-            self._retro_path = self.work_path / "retro"
+            self._retro_path = self.user_path / "retro"
         self._retro_path.mkdir(parents=True, exist_ok=True)
 
         # core_path: libretro 核心文件路径
@@ -475,7 +475,7 @@ class gameboy(DisplayPlugin):
 
     def _load_rom_list(self) -> list[Path]:
         """从 roms 目录加载所有可用的 ROM 文件"""
-        roms_dir = self.work_path / "roms"
+        roms_dir = self.user_path / "roms"
         if not roms_dir.exists():
             LOGGER.warning("ROM directory does not exist -> %s", roms_dir)
             return []
@@ -488,7 +488,7 @@ class gameboy(DisplayPlugin):
         """解析单个游戏路径（用于配置文件指定的 ROM）"""
         candidate = Path(rom_setting).expanduser()
         if not candidate.is_absolute():
-            candidate = self.work_path / candidate
+            candidate = self.user_path / candidate
         if candidate.exists():
             return candidate
         LOGGER.warning("Specified ROM does not exist -> %s", candidate)
@@ -714,7 +714,7 @@ class gameboy(DisplayPlugin):
             metrics.append((line, font, width, height))
 
         total_height = sum(item[3] for item in metrics) + max(0, len(metrics) - 1) * 2
-        y = (self.height - total_height) // 2
+        y = (self.height - total_height) // 2 - 10 
 
         for line, font, text_width, text_height in metrics:
             x = (self.width - text_width) // 2

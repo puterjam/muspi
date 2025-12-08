@@ -56,7 +56,7 @@ class roon(DisplayPlugin):
             # initialize Roon
             try:
                 # load core_id and token from config file
-                config_data = config.open(self.work_path / CONFIG_PATH)
+                config_data = config.open(self.user_path / CONFIG_PATH)
                 self.core_id = config_data["core_id"]
                 self.token = config_data["token"]
             except Exception:
@@ -80,7 +80,7 @@ class roon(DisplayPlugin):
 
                 # Save the token for next time
                 # Create directory if it doesn't exist
-                config_path = self.work_path / CONFIG_PATH
+                config_path = self.user_path / CONFIG_PATH
                 config_path.parent.mkdir(parents=True, exist_ok=True)
 
                 config.save(config_path, {

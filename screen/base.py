@@ -29,6 +29,7 @@ class DisplayPlugin(ABC):
         # Work path - plugin's directory path (calculated from plugin name)
         # e.g., for clock plugin: Path("screen/plugins/clock")
         self.work_path = Path(f"screen/plugins/{self.name}")
+        self.user_path = manager.get_path("user") / "plugins" / self.name
         
         # Image Buffer
         self.image = Image.new('1', (width, height))
