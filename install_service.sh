@@ -65,6 +65,9 @@ WorkingDirectory=${SCRIPT_DIR}
 ExecStart=${VENV_PYTHON} ${MAIN_PY}
 Restart=always
 RestartSec=3
+# 允许访问用户级的 PulseAudio
+Environment="XDG_RUNTIME_DIR=/run/user/1000"
+Environment="PULSE_RUNTIME_PATH=/run/user/1000/pulse"
 
 [Install]
 WantedBy=multi-user.target
