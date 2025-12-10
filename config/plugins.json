@@ -16,7 +16,7 @@
         },
         {
             "name": "dino",
-            "enabled": false,
+            "enabled": true,
             "auto_hide": false,
             "description": "恐龙小游戏",
             "config": {}
@@ -37,7 +37,7 @@
         },
         {
             "name": "roon",
-            "enabled": true,
+            "enabled": false,
             "auto_hide": false,
             "description": "Roon 控制端",
             "config": {}
@@ -58,7 +58,7 @@
         },
         {
             "name": "gameboy",
-            "enabled": true,
+            "enabled": false,
             "auto_hide": false,
             "description": "Arduboy 游戏机",
             "config": {}

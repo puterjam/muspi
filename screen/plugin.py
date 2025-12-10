@@ -5,7 +5,7 @@ from screen.manager import DisplayManager
 from until.config import config
 
 # config path
-CONFIG_PATH = "config/plugins.json"
+CONFIG_PATH = "config/plugins.json"  # 系统插件配置模板
 
 
 class PluginManager:
@@ -14,7 +14,79 @@ class PluginManager:
         self.plugin_classes = {}
         self.plugin_modules = {}  # 缓存已加载的模块
         self.plugin_paths = {}  # 缓存插件路径
-        self.config = config.open(CONFIG_PATH)
+        self.user_path = Path(manager.get_path("user"))
+        self.user_config_path = self.user_path / "plugins.json"
+        self._init_user_config()
+        self.config = config.open(str(self.user_config_path))
+
+    def _init_user_config(self):
+        """
+        初始化用户插件配置文件
+
+        如果用户配置不存在,复制系统配置到用户目录
+        如果用户配置存在,同步系统新增或删除的插件
+        """
+        import shutil
+
+        # 确保用户目录存在
+        self.user_path.mkdir(parents=True, exist_ok=True)
+
+        # 加载系统配置
+        system_config = config.open(CONFIG_PATH)
+        if not system_config:
+            LOGGER.error(f"Failed to load system plugin config: {CONFIG_PATH}")
+            return
+
+        # 如果用户配置不存在,复制系统配置
+        if not self.user_config_path.exists():
+            LOGGER.info(f"User plugin config not found, copying from system config...")
+            try:
+                shutil.copy2(CONFIG_PATH, self.user_config_path)
+                LOGGER.info(f"User plugin config created: {self.user_config_path}")
+            except Exception as e:
+                LOGGER.error(f"Failed to create user plugin config: {e}")
+            return
+
+        # 加载用户配置
+        user_config = config.open(str(self.user_config_path))
+        if not user_config:
+            LOGGER.error(f"Failed to load user plugin config: {self.user_config_path}")
+            return
+
+        # 同步系统配置的插件列表
+        system_plugins = system_config.get("plugins", [])
+        user_plugins = user_config.get("plugins", [])
+
+        # 创建插件名称到插件对象的映射
+        user_plugin_dict = {p["name"]: p for p in user_plugins}
+        system_plugin_dict = {p["name"]: p for p in system_plugins}
+
+        updated = False
+
+        # 检查系统新增的插件
+        for plugin_name, system_plugin in system_plugin_dict.items():
+            if plugin_name not in user_plugin_dict:
+                LOGGER.info(f"New plugin detected: {plugin_name}, adding to user config")
+                user_plugins.append(system_plugin.copy())
+                updated = True
+
+        # 检查用户配置中已删除的插件
+        plugins_to_remove = []
+        for plugin_name in user_plugin_dict.keys():
+            if plugin_name not in system_plugin_dict:
+                LOGGER.info(f"Plugin removed from system: {plugin_name}, removing from user config")
+                plugins_to_remove.append(plugin_name)
+                updated = True
+
+        # 删除已移除的插件
+        if plugins_to_remove:
+            user_plugins = [p for p in user_plugins if p["name"] not in plugins_to_remove]
+
+        # 保存更新后的用户配置
+        if updated:
+            user_config["plugins"] = user_plugins
+            config.save(str(self.user_config_path), user_config)
+            LOGGER.info(f"User plugin config synchronized")
 
     def _load_plugin_module(self, plugin_name):
         """
@@ -117,7 +189,8 @@ class PluginManager:
         注意：这不会卸载已加载的插件，只会更新配置
         """
         LOGGER.info("Reloading plugin configuration...")
-        self.config = config.open(CONFIG_PATH)
+        self._init_user_config()
+        self.config = config.open(str(self.user_config_path))
         LOGGER.info("Configuration reloaded")
 
     def get_loaded_plugins(self):

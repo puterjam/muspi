@@ -26,9 +26,12 @@ class ConfigManager:
         self.stdscr = stdscr
         self.base_path = Path(__file__).parent
         self.muspi_config_path = self.base_path / "config" / "muspi.json"
-        self.plugins_config_path = self.base_path / "config" / "plugins.json"
         self.service_file = self.base_path / "muspi.service"
         self.service_name = "muspi.service"
+
+        # 读取 user_path 配置
+        self.user_path = self._get_user_path()
+        self.plugins_config_path = self.user_path / "plugins.json"
 
         # 初始化颜色
         curses.start_color()
@@ -46,6 +49,20 @@ class ConfigManager:
         # 设置
         self.stdscr.keypad(True)
         curses.curs_set(0)  # 隐藏光标
+
+    def _get_user_path(self):
+        """获取用户数据路径"""
+        try:
+            muspi_config = self.load_json(self.muspi_config_path)
+            if muspi_config:
+                user_path = muspi_config.get("path", {}).get("user", "~/.local/share/muspi")
+                # 展开 ~ 为用户主目录
+                expanded_path = Path(user_path).expanduser()
+                return expanded_path
+        except Exception as e:
+            pass
+        # 默认路径
+        return Path("~/.local/share/muspi").expanduser()
 
     def load_json(self, path):
         """加载 JSON 配置文件"""
@@ -263,7 +280,7 @@ class ConfigManager:
         """管理插件开关"""
         config = self.load_json(self.plugins_config_path)
         if not config:
-            self.show_message("错误", "无法读取配置文件", 4)
+            self.show_message("错误", "无法读取配置文件，请先启动一次 Muspi", 4)
             return
 
         plugins = config.get("plugins", [])
@@ -277,7 +294,7 @@ class ConfigManager:
             h, w = self.stdscr.getmaxyx()
 
             # 显示标题
-            title = "插件管理"
+            title = f"插件管理 - {self.plugins_config_path}"
             self.stdscr.addstr(1, 2, title,
                              curses.color_pair(1) | curses.A_BOLD)
 
@@ -573,6 +590,36 @@ class ConfigManager:
             self.show_message("错误", f"卸载服务时发生错误:\n{e}", 4)
             return False
 
+    def show_service_logs(self):
+        """实时显示服务日志"""
+        # 退出 curses 模式，进入终端模式显示日志
+        curses.endwin()
+
+        try:
+            print("\n" + "=" * 60)
+            print("Muspi 服务日志 (按 Ctrl+C 退出)")
+            print("=" * 60 + "\n")
+
+            # 使用 journalctl 实时查看日志
+            subprocess.run(
+                ["journalctl", "-u", self.service_name, "-f", "--output=cat"],
+                check=False
+            )
+        except KeyboardInterrupt:
+            print("\n\n日志查看已停止")
+        except Exception as e:
+            print(f"\n查看日志时出错: {e}")
+
+        # 提示用户按键继续
+        input("\n按 Enter 键返回菜单...")
+
+        # 重新初始化 curses
+        self.stdscr = curses.initscr()
+        curses.noecho()
+        curses.cbreak()
+        self.stdscr.keypad(True)
+        curses.curs_set(0)
+
     def service_control_menu(self):
         """服务控制菜单"""
         installed = self.is_service_installed()
@@ -584,6 +631,7 @@ class ConfigManager:
                     "停止服务",
                     "重启服务",
                     "查看服务状态",
+                    "查看插件日志",
                     "卸载服务",
                     "返回主菜单"
                 ]
@@ -597,7 +645,7 @@ class ConfigManager:
 
             choice = self.show_menu(title, items)
 
-            if choice == -1 or (installed and choice == 5) or (not installed and choice == 1):
+            if choice == -1 or (installed and choice == 6) or (not installed and choice == 1):
                 break
 
             # 执行操作
@@ -614,6 +662,8 @@ class ConfigManager:
                 elif choice == 3:
                     self.show_service_status()
                 elif choice == 4:
+                    self.show_service_logs()
+                elif choice == 5:
                     if self.uninstall_service():
                         installed = self.is_service_installed()
 

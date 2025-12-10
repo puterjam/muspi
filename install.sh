@@ -24,79 +24,6 @@ INSTALL_TYPE=""
 INSTALLED_COMPONENTS=()
 
 #==========================================
-# 插件配置生成函数
-#==========================================
-
-generate_plugin_config() {
-    echo -e "${BLUE}[配置] 生成插件配置文件...${NC}"
-
-    local config_file="config/plugins.json"
-    local example_file="config/plugins.example.json"
-
-    if [ ! -f "$example_file" ]; then
-        echo -e "${RED}错误: 未找到示例配置文件 $example_file${NC}"
-        return 1
-    fi
-
-    # 使用 Python 脚本处理 JSON
-    ./venv/bin/python3 << 'PYTHON_SCRIPT'
-import json
-import sys
-
-# 读取示例配置
-with open('config/plugins.example.json', 'r', encoding='utf-8') as f:
-    config = json.load(f)
-
-# 从环境变量读取安装类型
-import os
-install_type = os.environ.get('INSTALL_TYPE', 'minimal')
-installed_components = os.environ.get('INSTALLED_COMPONENTS', '').split(',')
-
-print(f"安装类型: {install_type}")
-print(f"已安装组件: {installed_components}")
-
-# 处理每个插件
-for plugin in config['plugins']:
-    requires = plugin.get('requires', ['minimal'])
-    plugin_name = plugin['name']
-
-    # 判断是否启用该插件
-    if install_type == 'minimal':
-        # 精简安装：只启用 minimal 插件
-        plugin['enabled'] = 'minimal' in requires
-    else:
-        # 完整安装：检查依赖是否满足
-        enabled = True
-        for req in requires:
-            if req == 'minimal' or req == 'full':
-                continue
-            # 检查特定组件是否已安装
-            if req not in installed_components:
-                enabled = False
-                break
-        plugin['enabled'] = enabled
-
-    status = "✓ 启用" if plugin['enabled'] else "✗ 禁用"
-    description = plugin.get('description', plugin_name)
-    print(f"  {status}: {plugin_name} ({description})")
-
-    # 移除 requires 和 description 字段（运行时不需要）
-    if 'requires' in plugin:
-        del plugin['requires']
-    if 'description' in plugin:
-        del plugin['description']
-
-# 写入配置文件
-with open('config/plugins.json', 'w', encoding='utf-8') as f:
-    json.dump(config, f, indent=4, ensure_ascii=False)
-
-print("\n插件配置已生成: config/plugins.json")
-PYTHON_SCRIPT
-
-    echo -e "${GREEN}✓ 插件配置生成完成${NC}"
-}
-
-#==========================================
 # 安装步骤函数
 #==========================================
 
@@ -379,7 +306,6 @@ install_minimal() {
     echo -e "${GREEN}[8/7] 生成插件配置...${NC}"
     export INSTALL_TYPE
     export INSTALLED_COMPONENTS=$(IFS=,; echo "${INSTALLED_COMPONENTS[*]}")
-    generate_plugin_config
 }
 
 install_full() {
@@ -423,7 +349,6 @@ install_full() {
     echo -e "${GREEN}[8/7] 生成插件配置...${NC}"
     export INSTALL_TYPE
     export INSTALLED_COMPONENTS=$(IFS=,; echo "${INSTALLED_COMPONENTS[*]}")
-    generate_plugin_config
 }
 
 install_systemd_service() {
@@ -446,15 +371,13 @@ show_completion_message() {
     echo ""
     echo "================================"
     echo "安装完成！"
+    echo ""
+    echo "使用 ./config.py 配置屏幕驱动和插件"
     echo "================================"
     echo ""
 
     if [ "$INSTALL_TYPE" = "minimal" ]; then
-        echo "精简安装已完成，启用的插件："
-        echo "  ✓ 小智语音助手"
-        echo "  ✓ 时钟"
-        echo "  ✓ 小恐龙游戏"
-        echo "  ✓ 生命游戏"
+        echo "精简安装已完成"
         echo ""
         echo "如需启用 AirPlay/Roon/CD 功能，请运行完整安装"
     else
@@ -471,9 +394,8 @@ show_completion_message() {
 
     echo ""
     echo "注意事项："
-    echo "  1. 插件配置文件: config/plugins.json"
-    echo "  2. 如需修改插件配置，请编辑该文件"
-    echo "  3. 运行程序: ./venv/bin/python main.py"
+    echo "  1. 使用 ./config.py 配置屏幕驱动和插件"
+    echo "  2. 运行程序: ./muspi"
     echo ""
 
     # 询问是否安装系统服务
