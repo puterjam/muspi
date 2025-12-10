@@ -170,10 +170,18 @@ class ConfigManager:
 
             # 显示菜单项
             start_y = current_y + 1
+            item_positions = [None] * len(items)
+            y = start_y
             for idx, item in enumerate(items):
-                y = start_y + idx
+                is_last_item = idx == len(items) - 1
+                if is_last_item and show_numbers and len(items) > 1:
+                    # 为 0 选项单独留空行
+                    y += 1
+
                 if y >= h - 2:
                     break
+
+                item_positions[idx] = y
 
                 # 添加序号
                 if show_numbers:
@@ -188,8 +196,13 @@ class ConfigManager:
                 else:
                     self.stdscr.addstr(y, 4, f"  {number}{item}  ")
 
+                y += 1
+
             # 显示提示
-            hint = "↑↓ 方向键 | 数字快选 | Enter 确认 | q 退出" if show_numbers else "↑↓ 方向键 | Enter 确认 | q 退出"
+            if show_numbers:
+                hint = "↑↓ 方向键 | 数字快选 | Enter 确认 | q 退出 | r 快速重启"
+            else:
+                hint = "↑↓ 方向键 | Enter 确认 | q 退出 | r 快速重启"
             self.stdscr.addstr(h - 2, 2, hint, curses.A_DIM)
 
             self.stdscr.refresh()
@@ -214,14 +227,15 @@ class ConfigManager:
                         return len(items) - 1
                     elif 1 <= num < len(items):
                         return num - 1
+                elif key in (ord('r'), ord('R')):
+                    self.control_service("restart")
                 elif key == curses.KEY_MOUSE:
                     # 处理鼠标事件
                     try:
                         _, mx, my, _, _ = curses.getmouse()
                         # 检查点击是否在菜单项上
-                        for idx in range(len(items)):
-                            item_y = start_y + idx
-                            if my == item_y and 4 <= mx < w - 4:
+                        for idx, item_y in enumerate(item_positions):
+                            if item_y is not None and my == item_y and 4 <= mx < w - 4:
                                 return idx
                     except:
                         pass
@@ -356,7 +370,7 @@ class ConfigManager:
             self.stdscr.addstr(sep_y + 1, 4, f"  0. 返回主菜单  ")
 
             # 显示提示
-            hint = "↑↓ 方向键 | 数字快选 | Enter 切换 | q 退出"
+            hint = "↑↓ 方向键 | 数字快选 | Enter 切换 | q 退出 | r 快速重启"
             self.stdscr.addstr(h - 2, 2, hint, curses.A_DIM)
 
             self.stdscr.refresh()
@@ -390,6 +404,8 @@ class ConfigManager:
                         plugin["enabled"] = not plugin["enabled"]
                         self.save_json(self.plugins_config_path, config)
                         current = num - 1
+                elif key in (ord('r'), ord('R')):
+                    self.control_service("restart")
                 elif key == curses.KEY_MOUSE:
                     # 处理鼠标事件
                     try:
