@@ -67,17 +67,26 @@ def load_config(key,default={}):
 
 def detect_display():
     """
-    检测显示设备并返回设备实例
-    如果检测失败，从配置文件读取设置
+    从配置文件读取显示设备设置并返回设备实例
+    注意：由于 ssd1305 和 ssd1309 都基于 ssd1306，无法通过自动检测区分，必须手动配置
     """
-    config = load_config("display")
-    
-    driver = config.get('driver', 'ssd1309')
-    width = config.get('width', 128)
-    height = config.get('height', 64)
-    rotate = config.get('rotate', 0)
-    
-    LOGGER.info(f"try init display device: {driver} ({width}x{height}, rotate={rotate})")
+    display_config = load_config("display", {"driver": "waveshare-1309"})
+    drivers_config = load_config("drivers", {})
+
+    # 获取选择的驱动名称
+    driver_name = display_config.get('driver', 'waveshare-1309')
+
+    # 获取驱动的详细配置
+    driver_config = drivers_config.get(driver_name)
+    if not driver_config:
+        raise ValueError(f"driver config not found: {driver_name}")
+
+    driver = driver_config.get('driver', 'ssd1309')
+    width = driver_config.get('width', 128)
+    height = driver_config.get('height', 64)
+    rotate = driver_config.get('rotate', 0)
+
+    LOGGER.info(f"try init display device: {driver_name} -> {driver} ({width}x{height}, rotate={rotate})")
 
     try:
         if driver == 'ssd1309':

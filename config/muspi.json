@@ -1,21 +1,24 @@
 {
   "display": {
-    "driver": "ssd1309",
-    "interface": "spi",
-    "width": 128,
-    "height": 64,
-    "rotate": 0,
-    "spi": {
-      "port": 0,
-      "device": 0,
-      "bus_speed_hz": 8000000
-    },
-    "gpio": {
-      "dc": 25,
-      "rst": 27
-    }
+    "driver": "waveshare-1305"
   },
   "path": {
     "user": "~/.local/share/muspi"
+  },
+  "drivers": {
+    "waveshare-1309": {
+      "driver": "ssd1309",
+      "interface": "spi",
+      "width": 128,
+      "height": 64,
+      "rotate": 0
+    },
+    "waveshare-1305": {
+      "driver": "ssd1305",
+      "interface": "spi",
+      "width": 128,
+      "height": 32,
+      "rotate": 2
+    }
   }
 }
