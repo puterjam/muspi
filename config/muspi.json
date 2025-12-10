@@ -1,24 +1,24 @@
 {
-  "display": {
-    "driver": "waveshare-1305"
-  },
-  "path": {
-    "user": "~/.local/share/muspi"
-  },
-  "drivers": {
-    "waveshare-1309": {
-      "driver": "ssd1309",
-      "interface": "spi",
-      "width": 128,
-      "height": 64,
-      "rotate": 0
+    "display": {
+        "driver": "waveshare-1309"
     },
-    "waveshare-1305": {
-      "driver": "ssd1305",
-      "interface": "spi",
-      "width": 128,
-      "height": 32,
-      "rotate": 2
+    "path": {
+        "user": "~/.local/share/muspi"
+    },
+    "drivers": {
+        "waveshare-1309": {
+            "driver": "ssd1309",
+            "interface": "spi",
+            "width": 128,
+            "height": 64,
+            "rotate": 0
+        },
+        "waveshare-1305": {
+            "driver": "ssd1305",
+            "interface": "spi",
+            "width": 128,
+            "height": 32,
+            "rotate": 2
+        }
     }
-  }
 }

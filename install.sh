@@ -126,6 +126,19 @@ step_install_minimal_deps() {
         liblgpio1
 }
 
+step_init_submodules() {
+    echo -e "${GREEN}[3/7] 初始化 Git 子模块...${NC}"
+
+    # 检查是否有子模块
+    if [ -f ".gitmodules" ]; then
+        echo "正在初始化和更新 Git 子模块..."
+        git submodule update --init --recursive
+        echo "✓ Git 子模块初始化完成"
+    else
+        echo "未检测到 Git 子模块，跳过此步骤"
+    fi
+}
+
 step_install_full_deps() {
     echo -e "${GREEN}[额外] 安装完整依赖（AirPlay/Roon/CD 支持）...${NC}"
     $SUDO apt-get install -y \
@@ -157,7 +170,7 @@ step_install_full_deps() {
 }
 
 step_setup_venv() {
-    echo -e "${GREEN}[3/7] 设置 Python 虚拟环境...${NC}"
+    echo -e "${GREEN}[4/7] 设置 Python 虚拟环境...${NC}"
     if [ ! -d "venv" ]; then
         echo "创建 Python 虚拟环境..."
         python3 -m venv venv
@@ -167,7 +180,7 @@ step_setup_venv() {
 }
 
 step_install_python_deps() {
-    echo -e "${GREEN}[4/7] 安装 Python 依赖...${NC}"
+    echo -e "${GREEN}[5/7] 安装 Python 依赖...${NC}"
     ./venv/bin/pip install --upgrade pip
     ./venv/bin/pip install -r requirements.txt
 }
@@ -288,7 +301,7 @@ step_install_roonbridge() {
 }
 
 step_check_hardware() {
-    echo -e "${GREEN}[5/7] 检查硬件接口配置...${NC}"
+    echo -e "${GREEN}[6/7] 检查硬件接口配置...${NC}"
     if [ ! -e "/dev/spidev0.0" ]; then
         echo -e "${YELLOW}警告: SPI 接口未启用${NC}"
         echo "请运行 'sudo raspi-config' 并在 Interface Options 中启用 SPI"
@@ -298,7 +311,7 @@ step_check_hardware() {
 }
 
 step_wifi_optimization() {
-    echo -e "${GREEN}[6/7] 配置 WiFi 优化...${NC}"
+    echo -e "${GREEN}[7/7] 配置 WiFi 优化...${NC}"
 
     WIFI_INTERFACE=$(iw dev 2>/dev/null | awk '$1=="Interface"{print $2}' | head -n1)
     if [ -z "$WIFI_INTERFACE" ]; then
@@ -341,6 +354,7 @@ install_minimal() {
     echo ""
     echo "将安装："
     echo "  ✓ 基础系统依赖"
+    echo "  ✓ Git 子模块（pyarduboy 等）"
     echo "  ✓ Python 虚拟环境"
     echo "  ✓ Python 依赖包"
     echo "  ✓ 硬件接口检查"
@@ -356,12 +370,13 @@ install_minimal() {
 
     step_update_system
     step_install_minimal_deps
+    step_init_submodules
     step_setup_venv
     step_install_python_deps
     step_check_hardware
     step_wifi_optimization
 
-    echo -e "${GREEN}[7/7] 生成插件配置...${NC}"
+    echo -e "${GREEN}[8/7] 生成插件配置...${NC}"
     export INSTALL_TYPE
     export INSTALLED_COMPONENTS=$(IFS=,; echo "${INSTALLED_COMPONENTS[*]}")
     generate_plugin_config
@@ -376,6 +391,7 @@ install_full() {
     echo "将安装："
     echo "  ✓ 基础系统依赖"
     echo "  ✓ 完整系统依赖"
+    echo "  ✓ Git 子模块（pyarduboy 等）"
     echo "  ✓ Python 虚拟环境"
     echo "  ✓ Python 依赖包"
     echo "  ✓ nqptp (AirPlay 2 时间同步)"
@@ -394,6 +410,7 @@ install_full() {
     step_update_system
     step_install_minimal_deps
     step_install_full_deps
+    step_init_submodules
     step_setup_venv
     step_install_python_deps
     step_install_nqptp
@@ -403,7 +420,7 @@ install_full() {
     step_check_hardware
     step_wifi_optimization
 
-    echo -e "${GREEN}[7/7] 生成插件配置...${NC}"
+    echo -e "${GREEN}[8/7] 生成插件配置...${NC}"
     export INSTALL_TYPE
     export INSTALLED_COMPONENTS=$(IFS=,; echo "${INSTALLED_COMPONENTS[*]}")
     generate_plugin_config

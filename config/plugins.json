@@ -4,60 +4,70 @@
             "name": "xiaozhi",
             "enabled": true,
             "auto_hide": false,
+            "description": "小智 AI 助手",
             "config": {}
         },
         {
             "name": "clock",
             "enabled": true,
             "auto_hide": false,
+            "description": "时钟",
             "config": {}
         },
         {
             "name": "dino",
             "enabled": false,
             "auto_hide": false,
+            "description": "恐龙小游戏",
             "config": {}
         },
         {
             "name": "life",
             "enabled": false,
             "auto_hide": false,
+            "description": "生命游戏",
             "config": {}
         },
         {
             "name": "airplay",
             "enabled": false,
             "auto_hide": true,
+            "description": "AirPlay 音频播放",
             "config": {}
         },
         {
             "name": "roon",
             "enabled": true,
             "auto_hide": false,
+            "description": "Roon 控制端",
             "config": {}
         },
         {
             "name": "cdplayer",
             "enabled": false,
             "auto_hide": false,
+            "description": "CD 播放器",
             "config": {}
         },
         {
             "name": "matrix",
-            "enabled": false,
+            "enabled": true,
             "auto_hide": false,
+            "description": "黑客帝国矩阵动画",
             "config": {}
         },
         {
             "name": "gameboy",
             "enabled": true,
             "auto_hide": false,
+            "description": "Arduboy 游戏机",
             "config": {}
         },
         {
             "name": "spectrum",
             "enabled": false,
             "auto_hide": false,
+            "description": "音频频谱可视化",
             "config": {}
         }
     ]
