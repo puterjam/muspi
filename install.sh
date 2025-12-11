@@ -54,7 +54,8 @@ step_install_minimal_deps() {
         python3-gi-cairo  \
         gir1.2-glib-2.0  \
         libcairo2-dev  \
-        libgirepository1.0-dev
+        libgirepository1.0-dev \
+        portaudio19-dev
 }
 
 step_init_submodules() {
@@ -100,6 +101,7 @@ step_install_full_deps() {
         gir1.2-glib-2.0  \
         libcairo2-dev  \
         libgirepository1.0-dev  \
+        portaudio19-dev \
         mpv \
         socat
 
