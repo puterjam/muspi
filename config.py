@@ -857,10 +857,10 @@ class ConfigManager:
         mac = device.get("mac")
         name = device.get("name") or mac
 
-        agent_script = self.base_path / "until/bluetooth_agent.py"
+        agent_script = self.base_path / "until/device/bluetooth_agent.py"
         if not agent_script.exists():
             self.show_message("错误",
-                              f"未找到 until/bluetooth_agent.py，无法配对 {name}。",
+                              f"未找到 until/device/bluetooth_agent.py，无法配对 {name}。",
                               4)
             return False
 
@@ -873,7 +873,7 @@ class ConfigManager:
             )
         except Exception as e:
             self.show_message("错误",
-                              f"执行 until/bluetooth_agent.py 失败:\n{e}",
+                              f"执行 until/device/bluetooth_agent.py 失败:\n{e}",
                               4)
             return False
 
@@ -889,7 +889,7 @@ class ConfigManager:
             return True
 
         self.show_message("蓝牙操作失败",
-                          f"使用 until/bluetooth_agent.py 配对 {name} 失败:\n{combined_output or '未知错误'}",
+                          f"使用 until/device/bluetooth_agent.py 配对 {name} 失败:\n{combined_output or '未知错误'}",
                           4)
         return False
 
