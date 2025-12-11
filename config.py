@@ -16,6 +16,9 @@ import os
 import sys
 import subprocess
 import curses
+import re
+import time
+import select
 from pathlib import Path
 
 
@@ -428,6 +431,512 @@ class ConfigManager:
             except KeyboardInterrupt:
                 break
 
+    def _run_bluetoothctl(self, *args):
+        """执行 bluetoothctl 命令并返回结果"""
+        try:
+            return subprocess.run(
+                ["bluetoothctl", *args],
+                capture_output=True,
+                text=True
+            )
+        except FileNotFoundError:
+            self.show_message("错误", "bluetoothctl 未安装，请先安装 bluez-tools", 4)
+        except Exception as e:
+            self.show_message("错误", f"执行 bluetoothctl 失败:\n{e}", 4)
+        return None
+
+    def _parse_bluetooth_devices(self, text):
+        devices = {}
+        for raw_line in text.splitlines():
+            line = raw_line.strip()
+            if not line:
+                continue
+
+            match = re.search(r"Device\s+([0-9A-Fa-f:]{17})\s+(.+)$", line)
+            if not match:
+                continue
+
+            mac = match.group(1).upper()
+            name = match.group(2).strip() or mac
+            devices[mac] = {"mac": mac, "name": name}
+
+        return list(devices.values())
+
+    def scan_bluetooth_devices(self, timeout=30):
+        """扫描附近蓝牙设备 - 使用非交互模式(简化可靠版)"""
+        # 先获取已有设备列表作为基准
+        existing_result = subprocess.run(
+            ["bluetoothctl", "devices"],
+            capture_output=True,
+            text=True,
+            timeout=2
+        )
+        existing_macs = set()
+        for line in existing_result.stdout.splitlines():
+            parts = line.split(maxsplit=2)
+            if len(parts) >= 2 and parts[0] == "Device":
+                existing_macs.add(parts[1].upper())
+
+        # 调用扫描，但只显示新发现的设备
+        return self.scan_bluetooth_devices_simple(timeout, existing_macs)
+
+    def scan_bluetooth_devices_simple(self, timeout=30, existing_macs=None):
+        """简化版蓝牙扫描 - 使用非交互模式"""
+        # 设置非阻塞输入
+        self.stdscr.nodelay(True)
+
+        # 用于存储发现的设备
+        devices = {}
+        if existing_macs is None:
+            existing_macs = set()
+
+        # 创建日志文件
+        log_file_path = self.base_path / "bluetooth_scan.log"
+        log_file = open(log_file_path, 'w', encoding='utf-8')
+        log_file.write(f"=== 蓝牙扫描日志 (简化版) {time.strftime('%Y-%m-%d %H:%M:%S')} ===\n\n")
+        log_file.write(f"扫描前已有设备数: {len(existing_macs)}\n")
+        log_file.write(f"已有设备: {existing_macs}\n\n")
+
+        # 启动后台扫描进程
+        scan_proc = subprocess.Popen(
+            ["bluetoothctl", "--", "scan", "on"],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True
+        )
+        log_file.write(">>> 启动后台扫描: bluetoothctl scan on\n")
+        log_file.flush()
+
+        # 启动监控进程获取设备列表
+        start_time = time.time()
+        user_stopped = False
+        poll_count = 0
+
+        try:
+            while True:
+                # 检查用户输入
+                try:
+                    key = self.stdscr.getch()
+                    if key in (ord('q'), ord('Q'), 27):
+                        user_stopped = True
+                        log_file.write(f"\n>>> 用户停止扫描 (耗时: {time.time() - start_time:.1f}秒)\n")
+                        log_file.flush()
+                        break
+                except:
+                    pass
+
+                # 获取当前设备列表
+                poll_count += 1
+                log_file.write(f"\n--- 第 {poll_count} 次轮询 (时间: {time.time() - start_time:.1f}秒) ---\n")
+                log_file.flush()
+
+                result = subprocess.run(
+                    ["bluetoothctl", "devices"],
+                    capture_output=True,
+                    text=True,
+                    timeout=2
+                )
+
+                log_file.write(f"[STDOUT]\n{result.stdout}\n")
+                log_file.flush()
+
+                # 解析设备
+                new_devices = {}
+                for line in result.stdout.splitlines():
+                    log_file.write(f"[PARSE] 解析行: {line}\n")
+
+                    # 格式: Device MAC_ADDRESS Name
+                    parts = line.split(maxsplit=2)
+                    if len(parts) >= 2 and parts[0] == "Device":
+                        mac = parts[1].upper()
+                        name = parts[2] if len(parts) > 2 else None
+
+                        log_file.write(f"[INFO] MAC={mac}, Name={name}\n")
+
+                        # 检查是否是有效名称
+                        if name:
+                            # 排除 MAC 格式的名称
+                            mac_pattern = re.match(r'^[0-9A-Fa-f]{2}[-:][0-9A-Fa-f]{2}[-:][0-9A-Fa-f]{2}[-:][0-9A-Fa-f]{2}[-:][0-9A-Fa-f]{2}[-:][0-9A-Fa-f]{2}$', name)
+                            if not mac_pattern:
+                                # 判断设备状态
+                                if mac in existing_macs:
+                                    # 已配对的设备
+                                    status = "PAIRED"
+                                    log_file.write(f"[INFO] 已配对设备: {name} ({mac})\n")
+                                else:
+                                    # 新发现的设备
+                                    status = "NEW" if mac not in devices else "CHG"
+                                    log_file.write(f"[ACTION] 新发现设备: {name} ({mac}) - {status}\n")
+
+                                new_devices[mac] = {"name": name, "status": status, "mac": mac}
+                            else:
+                                log_file.write(f"[SKIP] MAC格式名称: {name}\n")
+                        else:
+                            log_file.write(f"[SKIP] 无名称设备: {mac}\n")
+
+                    log_file.flush()
+
+                # 更新设备列表
+                devices.update(new_devices)
+                log_file.write(f"[SUMMARY] 当前设备总数: {len(devices)}\n")
+                log_file.flush()
+
+                # 实时显示
+                self._display_scanning_ui(devices, user_stopped)
+
+                # 超时检查
+                if timeout > 0 and time.time() - start_time >= timeout:
+                    log_file.write(f"\n>>> 扫描超时 (timeout={timeout}秒)\n")
+                    log_file.flush()
+                    break
+
+                time.sleep(0.5)
+
+        finally:
+            # 停止扫描
+            log_file.write("\n>>> 停止扫描: bluetoothctl scan off\n")
+            log_file.flush()
+            scan_proc.terminate()
+            subprocess.run(["bluetoothctl", "--", "scan", "off"], capture_output=True)
+            self.stdscr.nodelay(False)
+
+            # 记录最终结果
+            log_file.write(f"\n=== 扫描结束,共发现 {len(devices)} 个设备 ===\n")
+            for mac, info in devices.items():
+                log_file.write(f"  - {info['name']} ({mac}) [{info['status']}]\n")
+            log_file.close()
+
+        return list(devices.values())
+
+    def scan_bluetooth_devices_raw(self, timeout=30):
+        """扫描附近蓝牙设备 - 使用原始 bluetoothctl 输出(备用方案)"""
+        # 设置非阻塞输入
+        self.stdscr.nodelay(True)
+
+        # 用于存储发现的设备 {mac: {"name": str, "status": str}}
+        devices = {}
+
+        # 创建日志文件
+        log_file_path = self.base_path / "bluetooth_scan.log"
+        log_file = open(log_file_path, 'w', encoding='utf-8')
+        log_file.write(f"=== 蓝牙扫描日志 {time.strftime('%Y-%m-%d %H:%M:%S')} ===\n\n")
+
+        try:
+            # 启动 bluetoothctl 进程
+            proc = subprocess.Popen(
+                ["bluetoothctl"],
+                stdin=subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True,
+                bufsize=1
+            )
+
+            # 开始扫描
+            proc.stdin.write("scan on\n")
+            proc.stdin.flush()
+            log_file.write(">>> 发送命令: scan on\n")
+            log_file.flush()
+
+            start_time = time.time()
+            user_stopped = False
+
+            # 实时读取和显示
+            while True:
+                # 检查用户输入
+                try:
+                    key = self.stdscr.getch()
+                    if key in (ord('q'), ord('Q'), 27):  # q 或 ESC
+                        user_stopped = True
+                        log_file.write(f"\n>>> 用户停止扫描 (耗时: {time.time() - start_time:.1f}秒)\n")
+                        log_file.flush()
+                        break
+                except:
+                    pass
+
+                # 使用 select 检查是否有输出可读
+                readable, _, _ = select.select([proc.stdout], [], [], 0.1)
+
+                if readable:
+                    line = proc.stdout.readline()
+                    if not line:
+                        break
+
+                    # 记录原始输出
+                    log_file.write(f"[RAW] {line}")
+                    log_file.flush()
+
+                    # 移除 ANSI 转义序列（颜色代码等）
+                    # 更精确地移除转义序列，避免误删 [NEW]、[CHG]、[DEL]
+                    clean_line = re.sub(r'\x1b\[[0-9;]*m', '', line)  # 移除颜色代码 ESC[...m
+                    clean_line = re.sub(r'\x1b\[[0-9;]*[A-Z]', '', clean_line)  # 移除其他 ESC 序列
+                    clean_line = re.sub(r'\[[0-9]+[A-Z]', '', clean_line)  # 移除 [22P 这样的序列
+                    clean_line = re.sub(r'\[K', '', clean_line)  # 移除清屏代码
+                    clean_line = re.sub(r'\[bluetooth\]#', '', clean_line)  # 移除提示符
+                    clean_line = clean_line.strip()  # 移除首尾空白
+
+                    log_file.write(f"[CLEAN] {clean_line}\n")
+                    log_file.flush()
+
+                    # 跳过空行
+                    if not clean_line:
+                        continue
+
+                    # 解析蓝牙设备信息
+                    # 格式示例: [NEW] Device 54:4F:79:05:89:D1 AAAA舜子
+                    #          [CHG] Device 14:D1:9E:30:5B:14 Aeolus
+                    #          [DEL] Device AA:BB:CC:DD:EE:FF
+                    match = re.search(r"\[(NEW|CHG|DEL)\]\s+Device\s+([0-9A-Fa-f:]{17})(?:\s+(.+))?", clean_line)
+
+                    # 调试:记录是否匹配
+                    if "[NEW]" in clean_line or "[CHG]" in clean_line or "[DEL]" in clean_line:
+                        if "Device" in clean_line:
+                            if match:
+                                log_file.write(f"[DEBUG] 正则匹配成功!\n")
+                            else:
+                                log_file.write(f"[DEBUG] 正则匹配失败! 行内容: {repr(clean_line)}\n")
+                            log_file.flush()
+
+                    if match:
+                        status = match.group(1)
+                        mac = match.group(2).upper()
+                        name = match.group(3).strip() if match.group(3) else None
+
+                        log_file.write(f"[PARSE] 状态={status}, MAC={mac}, 名称={name}\n")
+                        log_file.flush()
+
+                        # 检查是否是有效的设备名称
+                        # 排除：1) 无名称  2) 名称就是 MAC 地址的变体
+                        is_valid_name = False
+                        if name:
+                            # 检查名称是否只是 MAC 地址的另一种格式（用-分隔）
+                            mac_pattern = re.match(r'^[0-9A-Fa-f]{2}[-:][0-9A-Fa-f]{2}[-:][0-9A-Fa-f]{2}[-:][0-9A-Fa-f]{2}[-:][0-9A-Fa-f]{2}[-:][0-9A-Fa-f]{2}$', name)
+                            if not mac_pattern:
+                                is_valid_name = True
+
+                        # 只处理有有效名称的设备
+                        if is_valid_name:
+                            if status == "DEL":
+                                # 删除设备
+                                devices.pop(mac, None)
+                                log_file.write(f"[ACTION] 删除设备: {mac}\n")
+                            else:
+                                # 添加或更新设备
+                                devices[mac] = {"name": name, "status": status, "mac": mac}
+                                log_file.write(f"[ACTION] 添加/更新设备: {name} ({mac})\n")
+                            log_file.flush()
+                        else:
+                            if name:
+                                log_file.write(f"[SKIP] 跳过MAC格式名称设备: {name} ({mac})\n")
+                            else:
+                                log_file.write(f"[SKIP] 跳过无名称设备: {mac}\n")
+                            log_file.flush()
+
+                    # 实时显示界面
+                    self._display_scanning_ui(devices, user_stopped)
+
+                # 超时检查 (如果设置了 timeout)
+                if timeout > 0 and time.time() - start_time >= timeout:
+                    log_file.write(f"\n>>> 扫描超时 (timeout={timeout}秒)\n")
+                    log_file.flush()
+                    break
+
+                # 短暂休眠避免 CPU 占用过高
+                time.sleep(0.05)
+
+        except Exception as e:
+            log_file.write(f"\n!!! 异常: {e}\n")
+            log_file.flush()
+
+        finally:
+            # 停止扫描
+            log_file.write("\n>>> 发送命令: scan off\n")
+            log_file.flush()
+            self._run_bluetoothctl("scan", "off")
+
+            # 退出 bluetoothctl
+            try:
+                proc.stdin.write("quit\n")
+                proc.stdin.flush()
+            except:
+                pass
+
+            proc.terminate()
+            proc.wait(timeout=2)
+
+            # 恢复阻塞输入
+            self.stdscr.nodelay(False)
+
+            # 记录最终结果
+            log_file.write(f"\n=== 扫描结束,共发现 {len(devices)} 个设备 ===\n")
+            for mac, info in devices.items():
+                log_file.write(f"  - {info['name']} ({mac}) [{info['status']}]\n")
+            log_file.close()
+
+        # 返回设备列表
+        return list(devices.values())
+
+    def _display_scanning_ui(self, devices, user_stopped=False):
+        """显示扫描界面"""
+        try:
+            self.stdscr.clear()
+            h, w = self.stdscr.getmaxyx()
+
+            # 标题
+            if user_stopped:
+                title = "蓝牙设备扫描 - 已停止"
+                color = curses.color_pair(3)
+            else:
+                title = "蓝牙设备扫描中..."
+                color = curses.color_pair(5) | curses.A_BOLD
+
+            self.stdscr.addstr(1, 2, title, color)
+            self.stdscr.addstr(2, 2, "按 q 或 ESC 停止扫描", curses.A_DIM)
+            self.stdscr.addstr(3, 2, "-" * (w - 4))
+
+            # 显示设备列表
+            y = 5
+            device_count = 0
+
+            if devices:
+                for mac, info in sorted(devices.items(), key=lambda x: x[1]["name"]):
+                    if y >= h - 3:
+                        break
+
+                    name = info["name"]
+                    status = info["status"]
+
+                    # 显示设备信息
+                    # self.stdscr.addstr(y, 4, status_text, status_color | curses.A_BOLD)
+                    self.stdscr.addstr(y, 4, f"{name}", curses.A_BOLD)
+                    self.stdscr.addstr(y, 4 + len(name) + 2, f"({mac})", curses.A_DIM)
+
+                    y += 1
+                    device_count += 1
+            else:
+                self.stdscr.addstr(y, 4, "暂无设备...", curses.A_DIM)
+
+            # 底部状态栏
+            status_text = f"已发现 {device_count} 个设备"
+            self.stdscr.addstr(h - 2, 2, status_text, curses.color_pair(5))
+
+            self.stdscr.refresh()
+
+        except curses.error:
+            # 忽略屏幕绘制错误
+            pass
+
+    def get_paired_bluetooth_devices(self):
+        result = self._run_bluetoothctl("devices", "Paired")
+        if not result:
+            return None
+        devices = self._parse_bluetooth_devices(f"{result.stdout}\n{result.stderr}")
+        if devices:
+            return devices
+        if result.returncode != 0:
+            self.show_message("错误", f"读取已配对设备失败:\n{result.stderr or result.stdout}", 4)
+            return None
+        return []
+
+    def select_bluetooth_device(self, devices, title):
+        if not devices:
+            return None
+
+        items = []
+        for device in devices:
+            name = device.get("name") or "未知设备"
+            items.append(f"{name} ({device['mac']})")
+        items.append("返回上一级")
+
+        choice = self.show_menu(title, items, show_logo=False)
+        if choice == -1 or choice == len(items) - 1:
+            return None
+        return devices[choice]
+
+    def pair_and_connect_device(self, device):
+        mac = device.get("mac")
+        name = device.get("name") or mac
+
+        steps = [
+            (["pair", mac], "配对", True),
+            (["trust", mac], "添加信任", True),
+            (["connect", mac], "连接", False)
+        ]
+
+        for cmd, desc, ignore_error in steps:
+            result = self._run_bluetoothctl(*cmd)
+            if not result:
+                return False
+
+            success = result.returncode == 0
+            output = f"{result.stdout}\n{result.stderr}".lower()
+            if not success and ignore_error and ("already" in output or "exist" in output):
+                success = True
+
+            if not success:
+                self.show_message("蓝牙操作失败",
+                                  f"{desc} {name} 失败:\n{result.stderr or result.stdout}",
+                                  4)
+                return False
+
+        self.show_message("成功", f"✓ 已连接 {name}\nMAC: {mac}", 2)
+        return True
+
+    def connect_paired_device(self, device):
+        mac = device.get("mac")
+        name = device.get("name") or mac
+        result = self._run_bluetoothctl("connect", mac)
+        if not result:
+            return
+
+        if result.returncode == 0:
+            self.show_message("成功", f"✓ 已连接 {name}", 2)
+        else:
+            self.show_message("蓝牙操作失败",
+                              f"连接 {name} 失败:\n{result.stderr or result.stdout}",
+                              4)
+
+    def scan_and_connect_menu(self):
+        devices = self.scan_bluetooth_devices()
+        if devices is None:
+            return
+        if not devices:
+            self.show_message("提示", "未发现可用的蓝牙设备", 3)
+            return
+
+        device = self.select_bluetooth_device(devices, "附近蓝牙设备")
+        if device:
+            self.pair_and_connect_device(device)
+
+    def paired_devices_menu(self):
+        devices = self.get_paired_bluetooth_devices()
+        if devices is None:
+            return
+        if not devices:
+            self.show_message("提示", "当前没有已配对的设备", 3)
+            return
+
+        device = self.select_bluetooth_device(devices, "已配对设备")
+        if device:
+            self.connect_paired_device(device)
+
+    def bluetooth_menu(self):
+        while True:
+            items = [
+                "扫描附近设备 (配对并连接)",
+                "查看已配对设备 (重新连接)",
+                "返回主菜单"
+            ]
+
+            choice = self.show_menu("蓝牙配置", items, show_logo=False)
+
+            if choice == -1 or choice == 2:
+                break
+            elif choice == 0:
+                self.scan_and_connect_menu()
+            elif choice == 1:
+                self.paired_devices_menu()
+
     def install_service(self):
         """安装 Muspi 服务"""
         if not self.service_file.exists():
@@ -690,12 +1199,13 @@ class ConfigManager:
                 "设置显示驱动",
                 "插件管理",
                 "Muspi 服务管理",
+                "蓝牙配置",
                 "退出"
             ]
 
             choice = self.show_menu("Muspi 配置中心", items)
 
-            if choice == -1 or choice == 3:
+            if choice == -1 or choice == 4:
                 break
             elif choice == 0:
                 self.select_display_driver()
@@ -703,6 +1213,8 @@ class ConfigManager:
                 self.manage_plugins()
             elif choice == 2:
                 self.service_control_menu()
+            elif choice == 3:
+                self.bluetooth_menu()
 
 
 def main(stdscr):

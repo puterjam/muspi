@@ -54,3 +54,4 @@ roon.json
 # Gameboy ignore files
 screen/plugins/gameboy/retro/thumbnails/*
 screen/plugins/gameboy/roms/*
+*.log
