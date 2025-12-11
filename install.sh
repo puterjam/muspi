@@ -50,7 +50,11 @@ step_install_minimal_deps() {
         git \
         libdiscid-dev \
         liblgpio-dev \
-        liblgpio1
+        liblgpio1 \
+        python3-gi-cairo  \
+        gir1.2-glib-2.0  \
+        libcairo2-dev  \
+        libgirepository1.0-dev
 }
 
 step_init_submodules() {
@@ -90,6 +94,12 @@ step_install_full_deps() {
         swig \
         libdiscid0 \
         libdiscid-dev \
+        liblgpio-dev \
+        liblgpio1 \
+        python3-gi-cairo  \
+        gir1.2-glib-2.0  \
+        libcairo2-dev  \
+        libgirepository1.0-dev  \
         mpv \
         socat
 
@@ -100,7 +110,7 @@ step_setup_venv() {
     echo -e "${GREEN}[4/7] 设置 Python 虚拟环境...${NC}"
     if [ ! -d "venv" ]; then
         echo "创建 Python 虚拟环境..."
-        python3 -m venv venv
+        python3 -m venv include-system-site-packages venv
     else
         echo "虚拟环境已存在"
     fi

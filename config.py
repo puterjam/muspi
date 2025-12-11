@@ -857,30 +857,41 @@ class ConfigManager:
         mac = device.get("mac")
         name = device.get("name") or mac
 
-        steps = [
-            (["pair", mac], "配对", True),
-            (["trust", mac], "添加信任", True),
-            (["connect", mac], "连接", False)
-        ]
+        agent_script = self.base_path / "until/bluetooth_agent.py"
+        if not agent_script.exists():
+            self.show_message("错误",
+                              f"未找到 until/bluetooth_agent.py，无法配对 {name}。",
+                              4)
+            return False
 
-        for cmd, desc, ignore_error in steps:
-            result = self._run_bluetoothctl(*cmd)
-            if not result:
-                return False
+        try:
+            result = subprocess.run(
+                [sys.executable, str(agent_script), mac],
+                capture_output=True,
+                text=True,
+                cwd=self.base_path
+            )
+        except Exception as e:
+            self.show_message("错误",
+                              f"执行 until/bluetooth_agent.py 失败:\n{e}",
+                              4)
+            return False
 
-            success = result.returncode == 0
-            output = f"{result.stdout}\n{result.stderr}".lower()
-            if not success and ignore_error and ("already" in output or "exist" in output):
-                success = True
+        stdout = (result.stdout or "").strip()
+        stderr = (result.stderr or "").strip()
+        combined_output = "\n".join(filter(None, [stdout, stderr]))
 
-            if not success:
-                self.show_message("蓝牙操作失败",
-                                  f"{desc} {name} 失败:\n{result.stderr or result.stdout}",
-                                  4)
-                return False
+        if result.returncode == 0:
+            message = f"✓ 已通过 Agent 配对 {name}\nMAC: {mac}"
+            if combined_output:
+                message += f"\n\n{combined_output}"
+            self.show_message("成功", message, 2)
+            return True
 
-        self.show_message("成功", f"✓ 已连接 {name}\nMAC: {mac}", 2)
-        return True
+        self.show_message("蓝牙操作失败",
+                          f"使用 until/bluetooth_agent.py 配对 {name} 失败:\n{combined_output or '未知错误'}",
+                          4)
+        return False
 
     def connect_paired_device(self, device):
         mac = device.get("mac")
@@ -894,6 +905,31 @@ class ConfigManager:
         else:
             self.show_message("蓝牙操作失败",
                               f"连接 {name} 失败:\n{result.stderr or result.stdout}",
+                              4)
+
+    def remove_paired_device(self):
+        devices = self.get_paired_bluetooth_devices()
+        if devices is None:
+            return
+        if not devices:
+            self.show_message("提示", "当前没有已配对的设备可以移除", 3)
+            return
+
+        device = self.select_bluetooth_device(devices, "选择要取消配对的设备")
+        if not device:
+            return
+
+        mac = device.get("mac")
+        name = device.get("name") or mac
+        result = self._run_bluetoothctl("remove", mac)
+        if not result:
+            return
+
+        if result.returncode == 0:
+            self.show_message("成功", f"✓ 已移除 {name}\nMAC: {mac}", 2)
+        else:
+            self.show_message("蓝牙操作失败",
+                              f"移除 {name} 失败:\n{result.stderr or result.stdout}",
                               4)
 
     def scan_and_connect_menu(self):
@@ -925,17 +961,20 @@ class ConfigManager:
             items = [
                 "扫描附近设备 (配对并连接)",
                 "查看已配对设备 (重新连接)",
+                "取消配对 (移除设备)",
                 "返回主菜单"
             ]
 
             choice = self.show_menu("蓝牙配置", items, show_logo=False)
 
-            if choice == -1 or choice == 2:
+            if choice == -1 or choice == 3:
                 break
             elif choice == 0:
                 self.scan_and_connect_menu()
             elif choice == 1:
                 self.paired_devices_menu()
+            elif choice == 2:
+                self.remove_paired_device()
 
     def install_service(self):
         """安装 Muspi 服务"""
@@ -1199,7 +1238,7 @@ class ConfigManager:
                 "设置显示驱动",
                 "插件管理",
                 "Muspi 服务管理",
-                "蓝牙配置",
+                "蓝牙设备配置",
                 "退出"
             ]
 
