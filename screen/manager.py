@@ -63,11 +63,8 @@ class DisplayManager:
             sys.exit(1)
 
         self.disp = device
-        self.turn_on_screen()
-        self.disp.contrast(CONTRAST)  # 128 is the default contrast value
-        self.welcome()
 
-        # init variables
+        # init variables (必须在 turn_on_screen 之前初始化)
         self.key_listener = KeyListener()
         self.last_active = None
         self.active_id = 0
@@ -84,6 +81,11 @@ class DisplayManager:
 
         # init sleep
         self.sleep = False
+
+        # 初始化显示（在所有变量初始化之后）
+        self.turn_on_screen()
+        self.disp.contrast(CONTRAST)  # 128 is the default contrast value
+        self.welcome()
         self.sleep_time = 3 * 60  # 3 minutes idle time
         self.sleep_count = time.time()
 
@@ -386,7 +388,8 @@ class DisplayManager:
         self.reset_sleep_timer()
         # luma.oled 在初始化时已经完成了设置，这里只需要打开显示
         self.disp.show()  # 打开显示（0xAF命令）
-        self.last_active.on_disp_status_update("on")
+        if hasattr(self, 'last_active') and self.last_active:
+            self.last_active.on_disp_status_update("on")
         self.sleep = False
 
     def turn_off_screen(self):
@@ -394,7 +397,8 @@ class DisplayManager:
             LOGGER.info("\033[1m\033[37mTurn off screen\033[0m")
             # 关闭显示（0xAE命令）
             self.disp.hide()
-            self.last_active.on_disp_status_update("off")
+            if hasattr(self, 'last_active') and self.last_active:
+                self.last_active.on_disp_status_update("off")
             self.sleep = True
 
     def cleanup(self, reset=True):
