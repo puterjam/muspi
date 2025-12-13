@@ -204,9 +204,9 @@ class gameboy(DisplayPlugin):
             self._status = "Quit Game Thread."
             self._emulator_ready = False
 
-        # 只要有新帧就保持屏幕唤醒
-        if self.is_active and (time.time() - self._last_frame_ts) < 0.5:
-            self.manager.reset_sleep_timer()
+        # # 只要有新帧就保持屏幕唤醒
+        # if self.is_active and (time.time() - self._last_frame_ts) < 0.5:
+        #     self.manager.reset_sleep_timer() # reset the sleep timer
 
     # ------------------------------------------------------------------ #
     # muspi渲染
@@ -281,6 +281,9 @@ class gameboy(DisplayPlugin):
     def key_callback(self, evt):
         pressed = evt.value != 0
         keycode = evt.code
+        
+        # reset the sleep timer when any key is pressed
+        self.manager.reset_sleep_timer() 
 
         # 处理模拟轴事件（ABS_HAT0Y, ABS_HAT0X）
         self._handle_axis_input(evt)
@@ -638,6 +641,15 @@ class gameboy(DisplayPlugin):
             result.append(current)
         return result
 
+    def on_disp_status_update(self, status: str):
+        """display the status of the plugin"""
+        if status == "off":
+            self._exit_to_menu()
+        elif status == "on":
+            # 解锁时，如果在游戏模式且设置了暂停选项，恢复游戏循环
+            if not self._show_menu and self._pause_when_inactive:
+                self._loop_gate.set()
+        self.update()
 
     # ------------------------------------------------------------------ #
     # UI&菜单相关功能

@@ -152,6 +152,9 @@ class airplay(DisplayPlugin):
         
         # draw the volume wave icon
         # self.icon_drawer.draw_volume_wave(x=86, y=0, level=volume)
+        
+        if self.play_state == "play":
+            self.manager.reset_sleep_timer() # reset the sleep timer
             
     def is_playing(self):
         return self.play_state == "play"
@@ -163,9 +166,6 @@ class airplay(DisplayPlugin):
     
     def event_listener(self):
         self._read_metadata()
-        
-        if self.play_state == "play":
-            self.manager.reset_sleep_timer() # reset the sleep timer
 
         # check if the pause state has been more than 5 minutes
         if self.play_state == "pause" and time.time() - self.last_play_time > self.pause_timout:  # 300 seconds = 5 minutes

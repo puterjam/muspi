@@ -259,6 +259,9 @@ class roon(DisplayPlugin):
         
         ## draw the volume wave icon
         # self.icon_drawer.draw_volume_wave(x=112, y=0, level=volume)
+        
+        if self.play_state == "playing":
+            self.manager.reset_sleep_timer() # reset the sleep timer
     
     def set_active(self, value):
         super().set_active(value)
@@ -308,9 +311,7 @@ class roon(DisplayPlugin):
         self._read_metadata()
         
         # reset the sleep timer if the play state is playing
-        if self.play_state == "playing":
-            self.manager.reset_sleep_timer() # reset the sleep timer
-        else:
+        if self.play_state != "playing":
             self.is_played_yet = False
 
         # check if the pause state has been more than 5 minutes

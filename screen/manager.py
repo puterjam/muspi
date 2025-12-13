@@ -299,6 +299,11 @@ class DisplayManager:
                         True
                     )  # set the first plugin as default active
 
+                # 当屏幕锁定时，降低帧率并跳过渲染，防止烧屏和节省CPU
+                if self.sleep:
+                    time.sleep(0.5)  # 锁屏时每0.5秒检查一次
+                    continue
+
                 try:
                     self.last_active.update()
                     image = self.last_active.get_image()
@@ -381,6 +386,7 @@ class DisplayManager:
         self.reset_sleep_timer()
         # luma.oled 在初始化时已经完成了设置，这里只需要打开显示
         self.disp.show()  # 打开显示（0xAF命令）
+        self.last_active.on_disp_status_update("on")
         self.sleep = False
 
     def turn_off_screen(self):
@@ -388,6 +394,7 @@ class DisplayManager:
             LOGGER.info("\033[1m\033[37mTurn off screen\033[0m")
             # 关闭显示（0xAE命令）
             self.disp.hide()
+            self.last_active.on_disp_status_update("off")
             self.sleep = True
 
     def cleanup(self, reset=True):

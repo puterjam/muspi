@@ -66,7 +66,11 @@ class DisplayPlugin(ABC):
     def is_playing(self):
         """check if the plugin is playing"""
         pass
-
+    
+    def on_disp_status_update(self, status: str):
+        """display the status of the plugin"""
+        pass
+    
     def wants_exclusive_input(self) -> bool:
         """
         是否需要独占输入（例如游戏插件需要方向键）

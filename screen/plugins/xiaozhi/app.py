@@ -471,7 +471,28 @@ class xiaozhi(DisplayPlugin):
             self.is_sleeping = True
             self.robot.set_emotion("sleepy")
             self._close_chatbox()
-        
+
+    def on_disp_status_update(self, status: str):
+        """处理屏幕状态更新（锁屏/解锁）"""
+        if status == "off":
+            # 锁屏时降低帧率，减少屏幕刷新，防止烧屏
+            self._fps = 1.0  # 降低到 1 FPS
+            # 停止所有动画（清空动画列表）
+            self.anim.animation_list.clear()
+            # 重置动画偏移
+            self.robot_offset_x = 0
+            self.chatbox_offset_x = 0
+            # 设置为睡眠状态
+            if not self.is_sleeping:
+                self.is_sleeping = True
+                self.robot.set_emotion("sleepy")
+        elif status == "on":
+            # 解锁时恢复正常帧率
+            self._fps = EMOTION_FPS
+            # 唤醒
+            self._wakeup()
+        self.update()
+
     # 按键回调
     def key_callback(self, evt):
         # 获取全局功能按键
