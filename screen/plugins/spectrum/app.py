@@ -23,23 +23,24 @@ except ImportError:
 class spectrum(DisplayPlugin):
     CONFIG_FILE = "config.json"
     DEFAULT_CONFIG = {
-        "device": "",
-        "sample_rate": 48000,
-        "chunk_size": 1024,
-        "fft_size": 2048,
-        "min_frequency": 40,
-        "db_floor": -70.0,
-        "db_ceiling": -25.0,
-        "gain_db": 0.0,
-        "signal_threshold": 0.002,
-        "bar_signal_threshold": 0.05,
-        "silence_hold": 0.25,
-        "bar_gamma": 0.6,
-        "rise_smoothing": 0.35,
-        "decay_smoothing": 0.65,
-        "peak_decay": 0.02,
+        "device": "", #音频设备，留空自动检测
+        "sample_rate": 44100, #采样率，影响频域分辨率
+        "chunk_size": 1024, #采样数据大小，影响频域分辨率
+        "fft_size": 2048, #FFT窗口大小，影响频域分辨率
+        "min_frequency": 40, #最小频率，影响频域显示范围
+        "db_floor": -70.0, #dB.floor，影响频域显示范围
+        "db_ceiling": -15.0, #dB.ceiling，影响频域显示范围
+        "gain_db": 0.0, #dB.gain，影响频域显示范围
+        "signal_threshold": 0.003, #峰值振幅，判断是否静音
+        "bar_signal_threshold": 0.05, #频域最大条，判断是否静音
+        "silence_hold": 0.25, #静音判断时间
+        "bar_gamma": 0.5, #频域条高度指数
+        "rise_smoothing": 0.35, #频域条高度上升平滑
+        "decay_smoothing": 0.65, #频域条高度下降平滑
+        "peak_decay": 0.02, #频域条高度衰减
     }
-
+ 
+    # 音频设备循环检测列表
     LOOPBACK_CANDIDATES = [
         # "hw:Loopback,1",
         # "hw:Loopback,0",
@@ -57,7 +58,7 @@ class spectrum(DisplayPlugin):
         self.keymap = get_keymap()
 
         self._config = self._load_config()
-        self.sample_rate = int(self._config.get("sample_rate", 48000))
+        self.sample_rate = int(self._config.get("sample_rate", 44100))
         self.chunk_size = int(self._config.get("chunk_size", 1024))
         self.fft_size = int(self._config.get("fft_size", 2048))
         self.min_frequency = float(self._config.get("min_frequency", 40))
@@ -76,7 +77,7 @@ class spectrum(DisplayPlugin):
         self._sample_buffer = np.zeros(0, dtype=np.float32)
         self._hop_size = max(1, self.fft_size // 2)
         self._db_floor = float(self._config.get("db_floor", -70.0))
-        self._db_ceiling = float(self._config.get("db_ceiling", -5.0))
+        self._db_ceiling = float(self._config.get("db_ceiling", -15.0))
         self._gain_db = float(self._config.get("gain_db", 0.0))
         if self._db_ceiling <= self._db_floor:
             self._db_ceiling = self._db_floor + 10.0
@@ -100,7 +101,7 @@ class spectrum(DisplayPlugin):
         configured = (self._config.get("device") or "").strip()
         self._device_hint = env_device or configured or None
 
-        self._signal_threshold = float(self._config.get("signal_threshold", 0.002))
+        self._signal_threshold = float(self._config.get("signal_threshold", 0.003))
         self._bar_signal_threshold = float(self._config.get("bar_signal_threshold", 0.05))
         self._silence_hold = float(self._config.get("silence_hold", 0.75))
         self._last_signal_ts = time.time()
@@ -308,7 +309,8 @@ class spectrum(DisplayPlugin):
                 pcm.setperiodsize(self.chunk_size)
 
                 self._device_label = device
-                self._status_message = f"{device} {self.sample_rate // 1000}kHz"
+                # self._status_message = f"{device} {self.sample_rate // 1000}kHz"
+                self._status_message = "Capturing"
                 LOGGER.info(f"[spectrum] capturing loopback from {device}")
                 return pcm
             except alsaaudio.ALSAAudioError as exc:  # type: ignore[attr-defined]
@@ -363,10 +365,14 @@ class spectrum(DisplayPlugin):
 
         peak_value = float(np.max(np.abs(frame)))
         bar_peak = float(np.max(bars)) if bars.size else 0.0
+        
+        # LOGGER.info(f"[spectrum] peak_value: {peak_value} bar_peak: {bar_peak}")
         now = time.time()
         silent = False
 
         if peak_value > self._signal_threshold or bar_peak > self._bar_signal_threshold:
+            # LOGGER.info(f"[spectrum] peak_value: {peak_value} bar_peak: {bar_peak}")
+            self.manager.reset_sleep_timer()  #when signal detected, reset sleep timer
             self._last_signal_ts = now
         else:
             if now - self._last_signal_ts > self._silence_hold:
@@ -416,10 +422,10 @@ class spectrum(DisplayPlugin):
             return self._error_message
 
         if self._capture_thread is None:
-            return "Tap to start"
+            return "Wait For Thread"
 
         if time.time() - self._last_signal_ts > 2.0:
-            return "Waiting audio..."
+            return "On Mute"
 
         return self._status_message or "Loopback"
 

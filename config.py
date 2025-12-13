@@ -119,6 +119,18 @@ class ConfigManager:
         self.stdscr.refresh()
         self.stdscr.getch()
 
+    def wait_any_key(self, message="\n按任意键返回菜单..."):
+        """等待用户按任意键(在非curses模式下使用)"""
+        print(message)
+        import sys, tty, termios
+        fd = sys.stdin.fileno()
+        old_settings = termios.tcgetattr(fd)
+        try:
+            tty.setraw(fd)
+            sys.stdin.read(1)
+        finally:
+            termios.tcsetattr(fd, termios.TCSADRAIN, old_settings)
+
     def show_menu(self, title, items, selected=0, show_numbers=True, show_logo=True):
         """显示菜单并返回选择
 
@@ -1175,7 +1187,7 @@ class ConfigManager:
             print(f"\n查看日志时出错: {e}")
 
         # 提示用户按键继续
-        input("\n按 Enter 键返回菜单...")
+        self.wait_any_key()
 
         # 重新初始化 curses
         self.stdscr = curses.initscr()
@@ -1225,7 +1237,7 @@ class ConfigManager:
             print(f"\n查看日志时出错: {e}")
 
         # 提示用户按键继续
-        input("\n按 Enter 键返回菜单...")
+        self.wait_any_key()
 
         # 重新初始化 curses
         self.stdscr = curses.initscr()
