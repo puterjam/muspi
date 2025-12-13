@@ -243,7 +243,7 @@ class roon(DisplayPlugin):
         offset = 28 # offset for the scroll text
         if self.height > 32:
             draw_scroll_text(draw, self.current_title, (offset, 16), width=100, font=self.font12, align="left")
-            draw_scroll_text(draw, self.current_artist + " - " + self.current_album, (offset, 32), width=100, font=self.font10,align="left")
+            draw_scroll_text(draw, self.current_artist + " - " + self.current_album, (offset, 32), width=100, font=self.font8,align="left")
             # draw_scroll_text(draw, "♪" + zone_name, (58+offset, 0), width=48, font=self.font_status)
             draw_scroll_text(draw,  "♪" + zone_name, (offset, 0), width=90, font=self.font_status, align="center")
             draw_scroll_text(draw, "R", (95+offset, 0), font=self.font_status)

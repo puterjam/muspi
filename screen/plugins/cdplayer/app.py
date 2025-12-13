@@ -41,7 +41,7 @@ class cdplayer(DisplayPlugin):
         offset = 28
         if self.height > 32:
             title_font = self.font12
-            subtitle_font = self.font10
+            subtitle_font = self.font8
             title_y = 16
             status_y = 24
             subtitle_y = 32

@@ -288,7 +288,11 @@ class DisplayManager:
                     continue
 
                 try:
-                    self.last_active.update()
+                    # 只有当main_screen动画未运行时才更新插件
+                    if not self.anim.is_running("main_screen") :
+                        self.last_active.update()
+                    
+                    # 获取当前插件的图像
                     image = self.last_active.get_image()
                     screen_offset = 128
 
@@ -299,15 +303,15 @@ class DisplayManager:
                         screen_offset = round(
                             self.anim.run("main_screen", self.disp.width)
                         )
-                        framerate = 1.0 / 60.0
+                        framerate = 1.0 / 120.0
                     else:
                         framerate = self.last_active.framerate
                         self.last_screen_image = None
 
-                    # Calculate offset based on animation direction
-                    if self.anim.direction == 1:  # forward (next)
+                    # 计算图像粘贴位置，根据动画方向调整
+                    if self.anim.direction == 1:  # 正向 (next)
                         paste_x = 128 - screen_offset
-                    else:  # backward (previous)
+                    else:  # 反向 (previous)
                         paste_x = screen_offset - 128
 
                     self.main_screen.paste(image, (paste_x, 0))

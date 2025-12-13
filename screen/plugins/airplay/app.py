@@ -140,7 +140,7 @@ class airplay(DisplayPlugin):
             # Layout for larger screens (height > 32)
             if self.current_title and self.current_artist:
                 draw_scroll_text(draw, self.current_title, (offset, 16), width=100, font=self.font12, align="left")
-                draw_scroll_text(draw, self.current_artist + " - " + self.current_album, (offset, 32), width=100, font=self.font10, align="left")
+                draw_scroll_text(draw, self.current_artist + " - " + self.current_album, (offset, 32), width=100, font=self.font8, align="left")
                 draw_scroll_text(draw, "♪" + client_name, (offset, 0), width=90, font=self.font_status, align="center")
                 draw_scroll_text(draw, "A", (95+offset, 0), font=self.font_status)
 

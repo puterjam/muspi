@@ -4,7 +4,7 @@ from PIL import Image, ImageDraw
 from until.log import LOGGER
 from screen.manager import FONTS
 
-DEFAULT_FPS = 24.0
+DEFAULT_FPS = 30.0
 
 class DisplayPlugin(ABC):
     """Base class for display plugins"""
