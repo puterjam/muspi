@@ -61,6 +61,22 @@ def resample_audio(data, original_rate, target_rate):
 
 def get_audio_capture_device():
     """检测可用的录音设备，返回设备名称如 'hw:3,0'"""
+    import os
+
+    # 首先检查 ~/.asoundrc 文件中是否配置了 dsnoop 设备
+    asoundrc_path = os.path.expanduser('~/.asoundrc')
+    try:
+        if os.path.exists(asoundrc_path):
+            with open(asoundrc_path, 'r') as f:
+                content = f.read()
+                # 检查是否配置了 dsnoop 设备
+                if 'type dsnoop' in content or 'type asym' in content:
+                    LOGGER.info("Found dsnoop or asym configuration in ~/.asoundrc, using 'default' device")
+                    return 'default'
+    except Exception as e:
+        LOGGER.warning(f"Failed to read ~/.asoundrc: {e}")
+
+    # 如果没有 dsnoop 配置，则检测硬件设备
     try:
         result = subprocess.run(['arecord', '-l'], capture_output=True, text=True)
         if result.returncode == 0:

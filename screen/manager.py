@@ -72,6 +72,7 @@ class DisplayManager:
         self.main_screen = Image.new("1", (self.disp.width, self.disp.height), 0)
         self.anim = Animation(ANIMATION_DURATION)
         self.anim.reset("main_screen")
+        self.anim_just_started = False  # 追踪动画是否刚开始
 
         # init keymap
         self.keymap = get_keymap()
@@ -129,6 +130,7 @@ class DisplayManager:
             self.last_screen_image = self.last_active.get_image()
             self.anim.reset("main_screen")
             self.anim.direction = 1  # forward direction
+            self.anim_just_started = True  # 标记动画刚开始
             self.last_active.set_active(False)
 
         next_id = (self.active_id + 1) % len(self.plugins)
@@ -149,6 +151,7 @@ class DisplayManager:
             self.last_screen_image = self.last_active.get_image()
             self.anim.reset("main_screen")
             self.anim.direction = -1  # reverse direction
+            self.anim_just_started = True  # 标记动画刚开始
             self.last_active.set_active(False)
 
         prev_id = (self.active_id - 1) % len(self.plugins)
@@ -288,8 +291,13 @@ class DisplayManager:
                     continue
 
                 try:
-                    # 只有当main_screen动画未运行时才更新插件
-                    if not self.anim.is_running("main_screen") :
+                    # 动画开始前运行一次 update()
+                    if self.anim.is_running("main_screen"):
+                        if self.anim_just_started:
+                            self.last_active.update()
+                            self.anim_just_started = False
+                    else:
+                        # 动画未运行时正常更新插件
                         self.last_active.update()
                     
                     # 获取当前插件的图像

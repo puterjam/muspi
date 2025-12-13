@@ -202,7 +202,6 @@ class airplay(DisplayPlugin):
         key_nav_down = self.keymap.nav_down
 
         if evt.value == 1:  # key down
-            LOGGER.info(f"key_callback: {evt}")   
             # volume up/down
             if self.keymap.match(key_nav_up):
                 self.manager.adjust_volume("up")
