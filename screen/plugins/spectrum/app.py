@@ -270,7 +270,7 @@ class spectrum(DisplayPlugin):
 
         try:
             card_names = alsaaudio.cards()
-            LOGGER.info(f"[spectrum] ALSA cards: {card_names}")
+            LOGGER.debug(f"[spectrum] ALSA cards: {card_names}")
             for card_index, card_name in enumerate(card_names):
                 base = f"hw:{card_index}"
                 plug = f"plughw:{card_index}"
@@ -285,7 +285,7 @@ class spectrum(DisplayPlugin):
 
         try:
             pcm_names = alsaaudio.pcms(alsaaudio.PCM_CAPTURE)
-            LOGGER.info(f"[spectrum] ALSA capture PCMs: {pcm_names}")
+            LOGGER.debug(f"[spectrum] ALSA capture PCMs: {pcm_names}")
             for pcm_name in pcm_names:
                 _add(pcm_name)
         except Exception as exc:

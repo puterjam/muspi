@@ -104,6 +104,7 @@ class airplay(DisplayPlugin):
                     self.current_album = value
                 elif metadata_type == "session_state":
                     self.set_active(value)
+                    
                     if value:  # if start playing, update the last play time
                         self.last_play_time = time.time()
                 elif metadata_type == "play_state":

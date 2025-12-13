@@ -190,8 +190,8 @@ class roon(DisplayPlugin):
                 elif metadata_type == "zone_name":
                     self.zone_name = value
                 elif metadata_type == "session_state":
-                    if not self.is_played_yet:
-                        self.set_active(value)
+                    # if not self.is_played_yet:
+                    #     self.set_active(value)
                     if value:
                         self.last_play_time = time.time()
                         self.is_played_yet = True
