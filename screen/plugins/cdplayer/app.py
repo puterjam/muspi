@@ -66,6 +66,8 @@ class cdplayer(DisplayPlugin):
             draw_vu(draw, volume_level=0.5) 
             if self.manager.sleep:
                 self.manager.turn_on_screen()
+                
+            self.manager.reset_sleep_timer() # reset the sleep timer
             draw_scroll_text(draw, "⏵", (offset, 0), font=self.font_status)
         elif self.media_player.play_state == "pause":
             draw_vu(draw, volume_level=0.0)
@@ -74,9 +76,6 @@ class cdplayer(DisplayPlugin):
             draw_vu(draw, volume_level=0.0)
             draw_scroll_text(draw, "⏹", (offset, 0), font=self.font_status)
             
-        if self.media_player.is_running:
-            self.manager.reset_sleep_timer() # reset the sleep timer
-                
     def is_playing(self):
         return self.media_player.play_state == "playing"
 

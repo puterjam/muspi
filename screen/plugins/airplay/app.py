@@ -145,6 +145,8 @@ class airplay(DisplayPlugin):
             draw_vu(draw, volume_level=volume) 
             if self.manager.sleep:
                 self.manager.turn_on_screen()
+            
+            self.manager.reset_sleep_timer() # reset the sleep timer
             draw_scroll_text(draw, "⏵", (offset, 0), font=self.font_status)
         else:
             draw_vu(draw, volume_level=0.0)
@@ -153,8 +155,7 @@ class airplay(DisplayPlugin):
         # draw the volume wave icon
         # self.icon_drawer.draw_volume_wave(x=86, y=0, level=volume)
         
-        if self.play_state == "play":
-            self.manager.reset_sleep_timer() # reset the sleep timer
+
             
     def is_playing(self):
         return self.play_state == "play"
