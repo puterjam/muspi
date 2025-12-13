@@ -240,23 +240,45 @@ class roon(DisplayPlugin):
         # draw the scrolling text
         zone_name = (self.zone_name or "no output").replace(SUFFIX, "")
         
-        offset = 28
-        draw_scroll_text(draw, self.current_title, (offset, 10), width=100, font=self.font10, align="center")
-        draw_scroll_text(draw, self.current_artist + " - " + self.current_album, (offset, 24), width=100, font=self.font8,align="center")
-        # draw_scroll_text(draw, "♪" + zone_name, (58+offset, 0), width=48, font=self.font_status)
-        draw_scroll_text(draw,  "♪" + zone_name, (6+offset, 0), width=90, font=self.font_status, align="center")
-        draw_scroll_text(draw, "R", (95+offset, 0), font=self.font_status)
-       
+        offset = 28 # offset for the scroll text
+        if self.height > 32:
+            draw_scroll_text(draw, self.current_title, (offset, 16), width=100, font=self.font12, align="left")
+            draw_scroll_text(draw, self.current_artist + " - " + self.current_album, (offset, 32), width=100, font=self.font10,align="left")
+            # draw_scroll_text(draw, "♪" + zone_name, (58+offset, 0), width=48, font=self.font_status)
+            draw_scroll_text(draw,  "♪" + zone_name, (offset, 0), width=90, font=self.font_status, align="center")
+            draw_scroll_text(draw, "R", (95+offset, 0), font=self.font_status)
+            
+            # draw the bar
+            bar_height = 11
+            bar_top = self.height - bar_height
+            draw.rectangle((0, bar_top - 1, self.width, bar_top), fill=255)
+            draw.rectangle((0, bar_top, self.width, self.height), fill=0)
+            
+            if self.play_state == "playing":
+                button = " Pause  Next"
+            else:
+                button = " Play   Next"
+                
+            draw.text((4, bar_top + 2), button, font=self.font8, fill=255)
+            draw.text((102, bar_top + 2), " Vol", font=self.font8, fill=255)
+            offset=0
+        else:
+            draw_scroll_text(draw, self.current_title, (offset, 10), width=100, font=self.font10, align="center")
+            draw_scroll_text(draw, self.current_artist + " - " + self.current_album, (offset, 24), width=100, font=self.font8,align="center")
+            # draw_scroll_text(draw, "♪" + zone_name, (58+offset, 0), width=48, font=self.font_status)
+            draw_scroll_text(draw,  "♪" + zone_name, (offset, 0), width=90, font=self.font_status, align="center")
+            draw_scroll_text(draw, "R", (95+offset, 0), font=self.font_status)
+        
         ## draw the VU table
         if self.play_state == "playing":
-            draw_vu(draw, volume_level=volume)
+            draw_vu(draw, volume_level=volume, center_y=self.height // 2 -2)
             if self.manager.sleep:
                 self.manager.turn_on_screen()
                 
             self.manager.reset_sleep_timer() # reset the sleep timer
             draw_scroll_text(draw, "⏵", (offset, 0), font=self.font_status)
         else:
-            draw_vu(draw, volume_level=0.0)
+            draw_vu(draw, volume_level=0.0, center_y=self.height // 2 -2)
             draw_scroll_text(draw, "⏸", (offset, 0), font=self.font_status)
         
         ## draw the volume wave icon
@@ -291,6 +313,9 @@ class roon(DisplayPlugin):
         key_next = self.keymap.media_next
         key_previous = self.keymap.media_previous
         key_stop = self.keymap.media_stop  # 停止播放
+        
+        key_nav_up = self.keymap.nav_up
+        key_nav_down = self.keymap.nav_down
 
         if evt.value == 1:  # key down
             # select 键或专用播放/暂停键
@@ -305,6 +330,22 @@ class roon(DisplayPlugin):
             # 专用停止键
             if self.keymap.match(key_stop):
                 self.roon.playback_control(self.zone_id, control="stop")
+            
+            # volume up/down
+            if self.keymap.match(key_nav_up):
+                self.manager.adjust_volume("up")
+
+            if self.keymap.match(key_nav_down):
+                self.manager.adjust_volume("down")
+        
+        # if evt.value == 2: 
+        #     # volume up/down
+        #     if self.keymap.match(key_nav_up):
+        #         self.manager.adjust_volume("up")
+
+        #     if self.keymap.match(key_nav_down):
+        #         self.manager.adjust_volume("down")
+
 
     def event_listener(self):
         self._read_metadata()

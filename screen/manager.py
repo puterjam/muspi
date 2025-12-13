@@ -88,11 +88,7 @@ class DisplayManager:
         self.welcome()
         self.sleep_time = 3 * 60  # 3 minutes idle time
         self.sleep_count = time.time()
-
-        # init volume long press
-        self.volume_adjust_interval = 0.03  # 30ms interval for comfortable volume adjustment
-        self.last_volume_adjust_time = 0
-        self.volume_adjusting = False
+        
         self.is_muted = False  # 跟踪静音状态
 
         # initialize plugins
@@ -167,25 +163,27 @@ class DisplayManager:
 
         self.plugins[prev_id]["plugin"].set_active(True)
 
-    def _adjust_volume_with_interval(self, direction):
-        """Adjust volume with interval control for comfortable long press"""
-        if not self.volume_adjusting:
-            return  # Don't adjust if not currently pressing
+    def _adjust_volume_internal(self, direction):
+        """Internal method to actually adjust the volume"""
+        # 如果当前是静音状态，先取消静音
+        if self.is_muted:
+            self.is_muted = toggle_mute()
+            LOGGER.info("Auto-unmuted due to volume adjustment")
 
-        current_time = time.time()
-        if current_time - self.last_volume_adjust_time >= self.volume_adjust_interval:
-            # 如果当前是静音状态，先取消静音
-            if self.is_muted:
-                self.is_muted = toggle_mute()
-                LOGGER.info("Auto-unmuted due to volume adjustment")
+        if hasattr(self.last_active, "adjust_volume"):
+            self.last_active.adjust_volume(direction)
+        else:
+            volume = adjust_volume(direction)
+            if volume is not None:
+                self.overlay_manager.show_volume(volume)
 
-            if hasattr(self.last_active, "adjust_volume"):
-                self.last_active.adjust_volume(direction)
-            else:
-                volume = adjust_volume(direction)
-                if volume is not None:
-                    self.overlay_manager.show_volume(volume)
-            self.last_volume_adjust_time = current_time
+    def adjust_volume(self, direction):
+        """Directly adjust volume without any restrictions (for plugin use)
+
+        This method can be called by plugins to adjust volume immediately,
+        without the volume_adjusting flag or interval control.
+        """
+        self._adjust_volume_internal(direction)
 
     def _signal_handler(self, signum, frame):
         """handle the termination signal"""
@@ -249,12 +247,10 @@ class DisplayManager:
 
                 # Volume adjustment on initial press
                 if is_volume_up:
-                    self.volume_adjusting = True
-                    self._adjust_volume_with_interval("up")
+                    self.adjust_volume("up")
 
                 if is_volume_down:
-                    self.volume_adjusting = True
-                    self._adjust_volume_with_interval("down")
+                    self.adjust_volume("down")
 
                 # Volume mute toggle
                 if is_volume_mute:
@@ -267,21 +263,6 @@ class DisplayManager:
                             volume = get_volume_percent()
                             if volume is not None:
                                 self.overlay_manager.show_volume(volume)
-
-        elif evt.value == 2:  # key repeat (long press)
-            if not self.sleep:
-                # Continue volume adjustment during long press
-                if is_volume_up:
-                    self._adjust_volume_with_interval("up")
-
-                if is_volume_down:
-                    self._adjust_volume_with_interval("down")
-
-        elif evt.value == 0:  # key release
-            # Reset volume adjusting flag and timer
-            if is_volume_up or is_volume_down:
-                self.volume_adjusting = False
-                self.last_volume_adjust_time = 0
 
     def run(self):
         detect_pcm_controls()
@@ -374,7 +355,7 @@ class DisplayManager:
             logo_size=(24, 24),
         )
         self.disp.display(welcome_image)
-        time.sleep(1)
+        # time.sleep(1)
 
     def reset_sleep_timer(self):
         self.sleep_count = time.time()

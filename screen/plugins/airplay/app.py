@@ -7,6 +7,7 @@ from until.log import LOGGER
 from screen.base import DisplayPlugin
 from ui.component import draw_scroll_text, draw_vu
 from assets.icons import IconDrawer
+from until.keymap import get_keymap
 
 class airplay(DisplayPlugin):
     def __init__(self, manager, width, height):
@@ -24,6 +25,7 @@ class airplay(DisplayPlugin):
         self.metadata_queue = queue.Queue()
         self.pause_timout = 30
         self._start_metadata_reader()
+        self.keymap = get_keymap()
         
     
     def _start_metadata_reader(self):
@@ -133,23 +135,42 @@ class airplay(DisplayPlugin):
         
         # draw the scrolling text
         offset = 28
-        if self.current_title and self.current_artist:
-            draw_scroll_text(draw, self.current_title, (offset, 10), width=100, font=self.font10, align="center")
-            draw_scroll_text(draw, self.current_artist + " - " + self.current_album, (offset, 24), width=100, font=self.font8, align="center")
-            #draw_scroll_text(draw, "♪" + self.client_name, (58+offset, 0), font=self.font_status)
-            draw_scroll_text(draw, "♪" + self.client_name, (6+offset, 0), width=90, font=self.font_status, align="center")
-            draw_scroll_text(draw, "A", (95+offset, 0), font=self.font_status)
+        client_name = self.client_name if self.client_name else "AirPlay"
+        if self.height > 32:
+            # Layout for larger screens (height > 32)
+            if self.current_title and self.current_artist:
+                draw_scroll_text(draw, self.current_title, (offset, 16), width=100, font=self.font12, align="left")
+                draw_scroll_text(draw, self.current_artist + " - " + self.current_album, (offset, 32), width=100, font=self.font10, align="left")
+                draw_scroll_text(draw, "♪" + client_name, (offset, 0), width=90, font=self.font_status, align="center")
+                draw_scroll_text(draw, "A", (95+offset, 0), font=self.font_status)
+
+            # draw the bar
+            bar_height = 11
+            bar_top = self.height - bar_height
+            draw.rectangle((0, bar_top - 1, self.width, bar_top), fill=255)
+            draw.rectangle((0, bar_top, self.width, self.height), fill=0)
+            
+            # draw.text((4, bar_top + 2), " Airplay", font=self.font8, fill=255)
+            draw.text((102, bar_top + 2), " Vol", font=self.font8, fill=255)
+            offset = 0
+        else:
+            # Layout for smaller screens (height <= 32)
+            if self.current_title and self.current_artist:
+                draw_scroll_text(draw, self.current_title, (offset, 10), width=100, font=self.font10, align="center")
+                draw_scroll_text(draw, self.current_artist + " - " + self.current_album, (offset, 24), width=100, font=self.font8, align="center")
+                draw_scroll_text(draw, "♪" + client_name, (offset, 0), width=90, font=self.font_status, align="center")
+                draw_scroll_text(draw, "A", (95+offset, 0), font=self.font_status)
 
         # draw the VU table
         if self.play_state == "play":
-            draw_vu(draw, volume_level=volume) 
+            draw_vu(draw, volume_level=volume, center_y=self.height // 2 -2)
             if self.manager.sleep:
                 self.manager.turn_on_screen()
-            
+
             self.manager.reset_sleep_timer() # reset the sleep timer
             draw_scroll_text(draw, "⏵", (offset, 0), font=self.font_status)
         else:
-            draw_vu(draw, volume_level=0.0)
+            draw_vu(draw, volume_level=0.0, center_y=self.height // 2 -2)
             draw_scroll_text(draw, "⏸", (offset, 0), font=self.font_status)
         
         # draw the volume wave icon
@@ -164,6 +185,9 @@ class airplay(DisplayPlugin):
         super().set_active(value)
         if value:
             self.last_play_time = time.time()
+            self.manager.key_listener.on(self.key_callback)
+        else:
+            self.manager.key_listener.off(self.key_callback)
     
     def event_listener(self):
         self._read_metadata()
@@ -171,3 +195,17 @@ class airplay(DisplayPlugin):
         # check if the pause state has been more than 5 minutes
         if self.play_state == "pause" and time.time() - self.last_play_time > self.pause_timout:  # 300 seconds = 5 minutes
             self.set_active(False)
+
+    def key_callback(self, evt):
+        # 获取全局功能按键和媒体按键
+        key_nav_up = self.keymap.nav_up
+        key_nav_down = self.keymap.nav_down
+
+        if evt.value == 1:  # key down
+            LOGGER.info(f"key_callback: {evt}")   
+            # volume up/down
+            if self.keymap.match(key_nav_up):
+                self.manager.adjust_volume("up")
+
+            if self.keymap.match(key_nav_down):
+                self.manager.adjust_volume("down")

@@ -6,22 +6,45 @@ SCROLL_START_TIME = time.time()
 SCROLL_SPEED = 0.2  # speed parameter, 1.0, means 1 unit per second
 STOP_FRAMES = 32  # 停顿的帧数
 
+# VU 动画相关
+VU_FPS = 12  # VU 动画更新频率
+VU_FRAME_INTERVAL = 1.0 / VU_FPS  # 每帧间隔时间
+_last_vu_update_time = 0
+_cached_vu_heights = [0, 0, 0]  # 缓存的柱状图高度
+
 # 绘制左侧 VU 效果（32x32 区域）
 def draw_vu(draw, volume_level = 0.5, offset_x=0, center_y=14):
+    global _last_vu_update_time, _cached_vu_heights
+
     bar_width = 1
     spacing = 3
     num_bars = 3   # 增加到4个柱状图
-    max_height = 8
+    max_height = 12
 
-    # 获取当前音量级别
+    # 每个柱状图的高度系数，让它们有明显差异
+    bar_coefficients = [0.5, 0.8, 0.65]
+
+    current_time = time.time()
+
+    # 检查是否需要更新 VU 高度（8fps 控制）
+    if current_time - _last_vu_update_time >= VU_FRAME_INTERVAL:
+        _last_vu_update_time = current_time
+
+        # 更新缓存的柱状图高度
+        for i in range(num_bars):
+            # 根据当前音量级别和柱状图索引计算高度
+            bar_height = int(max_height * min(0.8, volume_level) * bar_coefficients[i])
+
+            # 添加非常小的随机变化使显示更平滑
+            if bar_height > 0:
+                bar_height = max(2, min(max_height,
+                                  bar_height + random.randint(-3, 3)))
+
+            _cached_vu_heights[i] = bar_height
+
+    # 使用缓存的高度绘制柱状图
     for i in range(num_bars):
-        # 根据当前音量级别计算柱状图高度
-        bar_height = int(max_height * min(0.8, volume_level))
-        
-        # 添加非常小的随机变化使显示更平滑
-        if bar_height > 0:
-            bar_height = max(2, min(max_height, 
-                              bar_height + random.randint(-4, 4)))
+        bar_height = _cached_vu_heights[i]
         
         x = 4 + i * (bar_width + spacing) + offset_x
         

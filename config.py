@@ -1184,6 +1184,74 @@ class ConfigManager:
         self.stdscr.keypad(True)
         curses.curs_set(0)
 
+    def restart_shairport_sync(self):
+        """重启 shairport-sync 服务"""
+        try:
+            result = subprocess.run(
+                ["sudo", "systemctl", "restart", "shairport-sync"],
+                capture_output=True,
+                text=True
+            )
+
+            if result.returncode == 0:
+                self.show_message("成功", "✓ shairport-sync 服务重启成功", 2)
+                return True
+            else:
+                self.show_message("错误", f"shairport-sync 服务重启失败:\n{result.stderr}", 4)
+                return False
+
+        except Exception as e:
+            self.show_message("错误", f"重启 shairport-sync 服务时发生错误:\n{e}", 4)
+            return False
+
+    def show_shairport_sync_logs(self):
+        """实时显示 shairport-sync 服务日志"""
+        # 退出 curses 模式，进入终端模式显示日志
+        curses.endwin()
+
+        try:
+            print("\n" + "=" * 60)
+            print("shairport-sync 服务日志 (按 Ctrl+C 退出)")
+            print("=" * 60 + "\n")
+
+            # 使用 journalctl 实时查看日志
+            subprocess.run(
+                ["journalctl", "-u", "shairport-sync", "-f", "--output=cat"],
+                check=False
+            )
+        except KeyboardInterrupt:
+            print("\n\n日志查看已停止")
+        except Exception as e:
+            print(f"\n查看日志时出错: {e}")
+
+        # 提示用户按键继续
+        input("\n按 Enter 键返回菜单...")
+
+        # 重新初始化 curses
+        self.stdscr = curses.initscr()
+        curses.noecho()
+        curses.cbreak()
+        self.stdscr.keypad(True)
+        curses.curs_set(0)
+
+    def other_tools_menu(self):
+        """其他工具菜单"""
+        while True:
+            items = [
+                "重启 shairport-sync 服务",
+                "查看 shairport-sync 日志",
+                "返回主菜单"
+            ]
+
+            choice = self.show_menu("其他工具", items, show_logo=False)
+
+            if choice == -1 or choice == 2:
+                break
+            elif choice == 0:
+                self.restart_shairport_sync()
+            elif choice == 1:
+                self.show_shairport_sync_logs()
+
     def service_control_menu(self):
         """服务控制菜单"""
         installed = self.is_service_installed()
@@ -1194,7 +1262,6 @@ class ConfigManager:
                     "启动服务",
                     "停止服务",
                     "重启服务",
-                    "查看服务状态",
                     "查看插件日志",
                     "卸载服务",
                     "返回主菜单"
@@ -1209,7 +1276,7 @@ class ConfigManager:
 
             choice = self.show_menu(title, items)
 
-            if choice == -1 or (installed and choice == 6) or (not installed and choice == 1):
+            if choice == -1 or (installed and choice == 5) or (not installed and choice == 1):
                 break
 
             # 执行操作
@@ -1223,11 +1290,11 @@ class ConfigManager:
                     self.control_service("stop")
                 elif choice == 2:
                     self.control_service("restart")
+                # elif choice == 3:
+                #     self.show_service_status()
                 elif choice == 3:
-                    self.show_service_status()
-                elif choice == 4:
                     self.show_service_logs()
-                elif choice == 5:
+                elif choice == 4:
                     if self.uninstall_service():
                         installed = self.is_service_installed()
 
@@ -1239,12 +1306,13 @@ class ConfigManager:
                 "插件管理",
                 "Muspi 服务管理",
                 "蓝牙设备配置",
+                "其他",
                 "退出"
             ]
 
             choice = self.show_menu("Muspi 配置中心", items)
 
-            if choice == -1 or choice == 4:
+            if choice == -1 or choice == 5:
                 break
             elif choice == 0:
                 self.select_display_driver()
@@ -1254,6 +1322,8 @@ class ConfigManager:
                 self.service_control_menu()
             elif choice == 3:
                 self.bluetooth_menu()
+            elif choice == 4:
+                self.other_tools_menu()
 
 
 def main(stdscr):
