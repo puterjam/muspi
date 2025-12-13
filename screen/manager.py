@@ -84,7 +84,7 @@ class DisplayManager:
 
         # init sleep
         self.sleep = False
-        self.sleep_time = 10 * 60  # 10 minutes idle time
+        self.sleep_time = 3 * 60  # 3 minutes idle time
         self.sleep_count = time.time()
 
         # init volume long press
