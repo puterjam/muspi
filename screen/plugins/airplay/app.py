@@ -72,7 +72,7 @@ class airplay(DisplayPlugin):
                         elif "Play Session Begin." in decoded_line:
                             self.metadata_queue.put(("session_state", True))
                         elif "Resume." in decoded_line:
-                            self.metadata_queue.put(("session_state", True))
+                            # self.metadata_queue.put(("session_state", True))
                             self.metadata_queue.put(("play_state", "play"))
                         elif "Pause." in decoded_line:
                             self.metadata_queue.put(("play_state", "pause"))

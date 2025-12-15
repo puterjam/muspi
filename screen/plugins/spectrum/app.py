@@ -9,6 +9,7 @@ from screen.base import DisplayPlugin
 from until.config import config as config_loader
 from until.log import LOGGER
 from ui.component import draw_scroll_text
+from ui.spinner import Spinner
 from until.keymap import get_keymap
 
 try:
@@ -112,6 +113,9 @@ class spectrum(DisplayPlugin):
         if not ALSA_AVAILABLE:
             self._error_message = "Install pyalsaaudio"
             LOGGER.error("pyalsaaudio is not installed; spectrum plugin disabled")
+            
+        # spinner text
+        self._capture_spinner = Spinner([" ","˃", "˃˃", "˃˃˃"], 0.4)
 
     # 加载插件配置
     def _load_config(self):
@@ -435,7 +439,13 @@ class spectrum(DisplayPlugin):
 
         status_text = self._get_status_text()
         
-        draw_scroll_text(draw, "♫", (0, 0), font=self.font_status)
+        if time.time() - self._last_signal_ts > 2.0:
+            # On Mute
+            draw_scroll_text(draw, "₽", (0, 0), font=self.font_status)
+        else:
+            # On Capturing
+            draw_scroll_text(draw, self._capture_spinner.frame(), (0, 0), font=self.font_status)
+            
         draw_scroll_text(draw, status_text, (28, 0), width=90, font=self.font_status, align="center")
         # draw_scroll_text(draw, "R", (123, 0), font=self.font_status)
             
@@ -464,12 +474,12 @@ class spectrum(DisplayPlugin):
             peak_y = max(top, baseline - peak_height)
             draw.line((left, peak_y, right, peak_y), fill=0 if peak_y == baseline else 255)
 
-        draw.rectangle((2, self.height - 2, self.width, self.height - 2), fill=255)
+        draw.rectangle((0, self.height - 2, self.width, self.height - 2), fill=255)
         scaled_avg = avg_level**gamma if apply_gamma else avg_level
         level_width = int((self.width - 4) * np.clip(scaled_avg, 0.0, 1.0))
         
         if level_width > 0:
-            draw.rectangle((2, self.height - 2, 2 + level_width, self.height - 1), fill=255)
+            draw.rectangle((0, self.height - 2, 2 + level_width, self.height - 1), fill=255)
     
     def __del__(self):
         self._stop_capture()
