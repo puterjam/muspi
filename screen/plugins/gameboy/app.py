@@ -74,7 +74,7 @@ class gameboy(DisplayPlugin):
 
     def __init__(self, manager, width, height):
         self.name = "gameboy"
-        LOGGER.info("Gameboy 插件: 初始化插件")
+        LOGGER.info("Gameboy Plugin: initialize")
 
         super().__init__(manager, width, height)
         # 运行参数

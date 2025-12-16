@@ -20,6 +20,7 @@ wheels/
 .installed.cfg
 *.egg
 *.DS_Store
+include-system-site-packages/
 
 # Virtual Environment
 venv/

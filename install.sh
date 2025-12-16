@@ -112,7 +112,7 @@ step_setup_venv() {
     echo -e "${GREEN}[4/7] 设置 Python 虚拟环境...${NC}"
     if [ ! -d "venv" ]; then
         echo "创建 Python 虚拟环境..."
-        python3 -m venv include-system-site-packages venv
+        python3 -m venv venv --system-site-packages
     else
         echo "虚拟环境已存在"
     fi

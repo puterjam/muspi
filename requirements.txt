@@ -32,3 +32,4 @@ python-libdiscid>=0.3.0  # DiscID 库
 libretro.py>=0.1.0      # LibRetro Python 绑定
 pyaudio>=0.2.11         # PyAudio 跨平台音频库（macOS/Windows/Linux）
 pyalsaaudio>=0.9.0;     # PyALSA 音频库（Linux）
+pyarduboy @ git+https://github.com/puterjam/pyarduboy.git@main # pyarduboy
