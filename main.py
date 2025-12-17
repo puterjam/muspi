@@ -46,6 +46,8 @@ from screen.manager import DisplayManager
 from until.log import LOGGER
 # add screen plugins
 from screen.plugin import PluginManager
+# add resource path helper
+from until.resource import get_resource_path
 
 
 import json
@@ -54,7 +56,7 @@ import os
 
 def load_config(key,default={}):
     """加载配置"""
-    config_path = os.path.join(os.path.dirname(__file__), 'config', 'muspi.json')
+    config_path = get_resource_path(os.path.join('config', 'muspi.json'))
 
     if os.path.exists(config_path):
         with open(config_path, 'r', encoding='utf-8') as f:

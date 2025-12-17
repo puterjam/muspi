@@ -22,12 +22,22 @@ import select
 from pathlib import Path
 
 
+def get_base_path():
+    """获取程序基础路径，支持开发环境和 PyInstaller 打包后的环境"""
+    if getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
+        # 打包后的环境
+        return Path(sys._MEIPASS)
+    else:
+        # 开发环境
+        return Path(__file__).parent
+
+
 class ConfigManager:
     """配置管理器 (curses 版本)"""
 
     def __init__(self, stdscr):
         self.stdscr = stdscr
-        self.base_path = Path(__file__).parent
+        self.base_path = get_base_path()
         self.muspi_config_path = self.base_path / "config" / "muspi.json"
         self.service_file = self.base_path / "muspi.service"
         self.service_name = "muspi.service"
@@ -1345,9 +1355,12 @@ def main(stdscr):
 
 
 if __name__ == "__main__":
-    # 检查是否在正确的目录
-    if not Path("config/muspi.json").exists():
-        print("错误: 请在 muspi 项目根目录下运行此脚本")
+    # 检查配置文件是否存在（支持打包后的环境）
+    base_path = get_base_path()
+    config_file = base_path / "config" / "muspi.json"
+    if not config_file.exists():
+        print(f"错误: 无法找到配置文件: {config_file}")
+        print("请确保程序完整性或重新安装")
         sys.exit(1)
 
     # 检查 TERM 环境变量

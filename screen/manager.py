@@ -8,6 +8,7 @@ from until.device.input import KeyListener, ecodes
 from until.device.volume import adjust_volume, detect_pcm_controls, toggle_mute, get_volume_percent
 from until.log import LOGGER
 from until.keymap import get_keymap
+from until.resource import get_resource_path
 
 from ui.fonts import Fonts
 from ui.animation import Animation
@@ -25,8 +26,8 @@ def _show_welcome(
     """show welcome screen"""
     image = Image.new("1", (width, height))
     try:
-        # 使用绝对路径打开图片
-        logo_path = Path("assets/icons/" + logo_name).resolve()
+        # 使用资源路径打开图片
+        logo_path = get_resource_path("assets/icons/" + logo_name)
 
         logo = Image.open(logo_path)
         # 调整图片大小

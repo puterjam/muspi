@@ -1,13 +1,13 @@
 [Unit]
-Description=Muspi Service
+Description=Muspi Service (Packaged)
 After=network-online.target
 Wants=network-online.target
 
 [Service]
 Type=simple
 User=pi
-WorkingDirectory=/home/pi/workspace/muspi
-ExecStart=/home/pi/workspace/muspi/venv/bin/python /home/pi/workspace/muspi/main.py
+WorkingDirectory=/opt/muspi
+ExecStart=/opt/muspi/muspi
 Restart=always
 RestartSec=3
 # 允许访问用户级的 PulseAudio

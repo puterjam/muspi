@@ -7,17 +7,20 @@ import os
 import json
 from evdev import ecodes
 from until.log import LOGGER
+from until.resource import get_resource_path
 
 class KeyMap:
     """全局按键映射管理器类"""
 
-    def __init__(self, config_path="/home/pi/workspace/muspi/config/keymap.json"):
+    def __init__(self, config_path=None):
         """
         初始化按键映射管理器
 
         Args:
             config_path: 按键配置文件路径
         """
+        if config_path is None:
+            config_path = get_resource_path("config/keymap.json")
         self.config_path = config_path
         self.config = {}
         self.keycode_cache = {}  # 缓存字符串到 keycode 的映射

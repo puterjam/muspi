@@ -3,9 +3,10 @@ from pathlib import Path
 from until.log import LOGGER
 from screen.manager import DisplayManager
 from until.config import config
+from until.resource import get_resource_path
 
 # config path
-CONFIG_PATH = "config/plugins.json"  # 系统插件配置模板
+CONFIG_PATH = get_resource_path("config/plugins.json")  # 系统插件配置模板
 
 
 class PluginManager:
