@@ -132,7 +132,6 @@ class DisplayManager:
             self.anim.reset("main_screen")
             self.anim.direction = 1  # forward direction
             self.anim_just_started = True  # 标记动画刚开始
-            self.last_active.set_active(False)
 
         next_id = (self.active_id + 1) % len(self.plugins)
 
@@ -143,7 +142,6 @@ class DisplayManager:
             and not self.plugins[next_id]["plugin"].is_playing()
         ):
             next_id = (next_id + 1) % len(self.plugins)
-
         self.plugins[next_id]["plugin"].set_active(True)
 
     def active_prev(self):
@@ -153,7 +151,6 @@ class DisplayManager:
             self.anim.reset("main_screen")
             self.anim.direction = -1  # reverse direction
             self.anim_just_started = True  # 标记动画刚开始
-            self.last_active.set_active(False)
 
         prev_id = (self.active_id - 1) % len(self.plugins)
 
