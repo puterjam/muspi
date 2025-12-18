@@ -185,12 +185,11 @@ class gameboy(DisplayPlugin):
 
         if value:
             self.manager.key_listener.on(self.key_callback)
-            self._loop_gate.set()
+            if not self._show_menu:
+                self._loop_gate.set()
         else:
             self.manager.key_listener.off(self.key_callback)
-            if self._pause_when_inactive:
-                self._loop_gate.clear()
-            self._reset_inputs()
+            self._exit_to_menu()
 
     def wants_exclusive_input(self) -> bool:
         # 菜单模式下不独占输入，允许系统切换
@@ -236,71 +235,26 @@ class gameboy(DisplayPlugin):
     # ------------------------------------------------------------------ #
     # muspi输入处理
 
-    def _handle_axis_input(self, evt):
-        """处理模拟轴输入（ABS_HAT0Y, ABS_HAT0X）"""
-        from evdev import ecodes
-
-        if evt.type != ecodes.EV_ABS:
-            return
-
-        # ABS_HAT0Y: 上下轴 (-1=上, 1=下, 0=居中)
-        if evt.code == ecodes.ABS_HAT0Y:
-            LOGGER.info(f"ABS_HAT0Y: {evt.value}")
-            prev_value = self._axis_state["ABS_HAT0Y"]
-            self._axis_state["ABS_HAT0Y"] = evt.value
-
-            if evt.value == -1:  # 向上
-                if self._show_menu and prev_value != -1:  # 仅在状态改变时触发菜单导航
-                    self._change_selection(-1)
-                self._set_button_state("up", True)
-                self._set_button_state("down", False)
-            elif evt.value == 1:  # 向下
-                if self._show_menu and prev_value != 1:  # 仅在状态改变时触发菜单导航
-                    self._change_selection(1)
-                self._set_button_state("down", True)
-                self._set_button_state("up", False)
-            else:  # 居中
-                self._set_button_state("up", False)
-                self._set_button_state("down", False)
-
-        # ABS_HAT0X: 左右轴 (-1=左, 1=右, 0=居中)
-        elif evt.code == ecodes.ABS_HAT0X:
-            LOGGER.info(f"ABS_HAT0X: {evt.value}")
-            self._axis_state["ABS_HAT0X"] = evt.value
-
-            if evt.value == -1:  # 向左
-                self._set_button_state("left", True)
-                self._set_button_state("right", False)
-            elif evt.value == 1:  # 向右
-                self._set_button_state("right", True)
-                self._set_button_state("left", False)
-            else:  # 居中
-                self._set_button_state("left", False)
-                self._set_button_state("right", False)
-
     def key_callback(self, evt):
-        pressed = evt.value != 0
+        km = self.keymap
         keycode = evt.code
         
         # reset the sleep timer when any key is pressed
         self.manager.reset_sleep_timer() 
 
-        # 处理模拟轴事件（ABS_HAT0Y, ABS_HAT0X）
-        self._handle_axis_input(evt)
-
         # 菜单模式下的按键处理
         if self._show_menu:
-            self._handle_menu_key(keycode, pressed)
+            self._handle_menu_key(evt)
             return
 
         # 游戏模式下的按键处理
         # 检测 action_menu 按键快速返回选单
-        if self.keymap.action_menu and keycode in self.keymap.action_menu and pressed:
+        if km.down(km.action_menu):
             self._exit_to_menu()
             return
 
         # 更新组合键状态（备用退出方式）
-        self._update_combo_key_state(keycode, pressed)
+        self._update_combo_key_state(keycode, abs(evt.value))
 
         # 检测组合键: action_select + action_cancel + nav_up（备用退出方式）
         if self._check_exit_combo():
@@ -311,28 +265,28 @@ class gameboy(DisplayPlugin):
 
         # 按键映射：支持键盘和手柄
         mapping = (
-            ("up", [self.keymap.nav_up]),
-            ("down", [self.keymap.nav_down]),
-            ("left", [self.keymap.nav_left]),
-            ("right", [self.keymap.nav_right]),
-            ("a", [self.keymap.action_select, self.keymap.gamepad_a]),
-            ("b", [self.keymap.action_cancel, self.keymap.gamepad_b]),
-            ("start", [self.keymap.action_menu, self.keymap.gamepad_start]),
-            ("select", [self.keymap.media_play_pause, self.keymap.gamepad_select]),
+            ("up", [km.nav_up]),
+            ("down", [km.nav_down]),
+            ("left", [km.nav_left]),
+            ("right", [km.nav_right]),
+            ("a", [km.action_select]),
+            ("b", [km.action_cancel]),
+            ("start", [km.action_menu, km.gamepad_start]),
+            ("select", [km.media_play_pause, km.gamepad_select]),
         )
 
         for button, key_lists in mapping:
             for key_list in key_lists:
-                if key_list and keycode in key_list:
-                    self._set_button_state(button, pressed)
+                if km.match(key_list):
+                    self._set_button_state(button, abs(evt.value))
                     break
 
         # media_stop 作为快速复位
-        if self.keymap.media_stop and keycode in self.keymap.media_stop and evt.value == 1:
+        if km.down(km.media_stop):
             self._reset_request.set()
 
         # action_screenshot 截图
-        if self.keymap.action_screenshot and keycode in self.keymap.action_screenshot and evt.value == 1:
+        if km.down(km.action_screenshot):
             self._take_screenshot()
 
     # ------------------------------------------------------------------ #
@@ -919,23 +873,21 @@ class gameboy(DisplayPlugin):
     # ------------------------------------------------------------------ #
     # 用户交互功能
     
-    def _handle_menu_key(self, keycode: int, pressed: bool):
+    def _handle_menu_key(self, evt):
         """处理菜单模式下的按键"""
-        if not pressed:  # 只响应按下事件
-            return
-
+        km = self.keymap
+        
         if not self._rom_list:
             return
 
         # 上下导航（键盘 + 手柄）
-        if (self.keymap.nav_up and keycode in self.keymap.nav_up):
+        if km.down(km.nav_up):
             self._change_selection(-1)
-        elif (self.keymap.nav_down and keycode in self.keymap.nav_down):
+        elif km.down(km.nav_down):
             self._change_selection(1)
 
         # 选择游戏（action_select + 手柄A键）
-        elif (self.keymap.action_select and keycode in self.keymap.action_select) or \
-             (self.keymap.gamepad_a and keycode in self.keymap.gamepad_a):
+        elif km.down(km.action_select) or km.down(km.gamepad_a):
             self._load_selected_game()
 
     def _load_selected_game(self):

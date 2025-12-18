@@ -485,22 +485,9 @@ class ConfigManager:
         return list(devices.values())
 
     def scan_bluetooth_devices(self, timeout=30):
-        """扫描附近蓝牙设备 - 使用非交互模式(简化可靠版)"""
-        # 先获取已有设备列表作为基准
-        existing_result = subprocess.run(
-            ["bluetoothctl", "devices"],
-            capture_output=True,
-            text=True,
-            timeout=2
-        )
-        existing_macs = set()
-        for line in existing_result.stdout.splitlines():
-            parts = line.split(maxsplit=2)
-            if len(parts) >= 2 and parts[0] == "Device":
-                existing_macs.add(parts[1].upper())
-
-        # 调用扫描，但只显示新发现的设备
-        return self.scan_bluetooth_devices_simple(timeout, existing_macs)
+        """扫描附近蓝牙设备 - 使用交互式模式(实时监听)"""
+        # 使用 raw 方法实时监听 [NEW] 事件,能更快捕获设备及其名称
+        return self.scan_bluetooth_devices_raw(timeout)
 
     def scan_bluetooth_devices_simple(self, timeout=30, existing_macs=None):
         """简化版蓝牙扫描 - 使用非交互模式"""
@@ -654,7 +641,14 @@ class ConfigManager:
                 bufsize=1
             )
 
-            # 开始扫描
+            # 先停止之前可能存在的扫描
+            # proc.stdin.write("scan off\n")
+            # proc.stdin.flush()
+            # log_file.write(">>> 发送命令: scan off (清理之前的扫描)\n")
+            # log_file.flush()
+            # time.sleep(0.5)  # 等待扫描完全停止
+
+            # 开始新的扫描
             proc.stdin.write("scan on\n")
             proc.stdin.flush()
             log_file.write(">>> 发送命令: scan on\n")
@@ -728,12 +722,34 @@ class ConfigManager:
                         log_file.flush()
 
                         # 检查是否是有效的设备名称
-                        # 排除：1) 无名称  2) 名称就是 MAC 地址的变体
+                        # 排除：1) 无名称  2) 名称就是 MAC 地址的变体  3) 蓝牙属性名称
                         is_valid_name = False
                         if name:
                             # 检查名称是否只是 MAC 地址的另一种格式（用-分隔）
                             mac_pattern = re.match(r'^[0-9A-Fa-f]{2}[-:][0-9A-Fa-f]{2}[-:][0-9A-Fa-f]{2}[-:][0-9A-Fa-f]{2}[-:][0-9A-Fa-f]{2}[-:][0-9A-Fa-f]{2}$', name)
-                            if not mac_pattern:
+
+                            # 过滤掉蓝牙属性名称（这些是 [CHG] 事件的属性变化，不是设备名称）
+                            bluetooth_property_patterns = [
+                                r'^RSSI:',                          # 信号强度
+                                r'^TxPower:',                       # 发射功率
+                                r'^ManufacturerData\.',             # 制造商数据
+                                r'^ServiceData\.',                  # 服务数据
+                                r'^Appearance:',                    # 外观
+                                r'^Icon:',                          # 图标
+                                r'^Class:',                         # 设备类别
+                                r'^UUIDs:',                         # UUID列表
+                                r'^Modalias:',                      # 模态别名
+                                r'^Paired:',                        # 配对状态
+                                r'^Trusted:',                       # 信任状态
+                                r'^Blocked:',                       # 阻止状态
+                                r'^Connected:',                     # 连接状态
+                                r'^LegacyPairing:',                 # 传统配对
+                                r'^ServicesResolved:',              # 服务解析状态
+                            ]
+
+                            is_property = any(re.match(pattern, name) for pattern in bluetooth_property_patterns)
+
+                            if not mac_pattern and not is_property:
                                 is_valid_name = True
 
                         # 只处理有有效名称的设备
@@ -749,7 +765,10 @@ class ConfigManager:
                             log_file.flush()
                         else:
                             if name:
-                                log_file.write(f"[SKIP] 跳过MAC格式名称设备: {name} ({mac})\n")
+                                if re.match(r'^[0-9A-Fa-f]{2}[-:][0-9A-Fa-f]{2}[-:][0-9A-Fa-f]{2}[-:][0-9A-Fa-f]{2}[-:][0-9A-Fa-f]{2}[-:][0-9A-Fa-f]{2}$', name):
+                                    log_file.write(f"[SKIP] 跳过MAC格式名称设备: {name} ({mac})\n")
+                                else:
+                                    log_file.write(f"[SKIP] 跳过蓝牙属性变化: {name} ({mac})\n")
                             else:
                                 log_file.write(f"[SKIP] 跳过无名称设备: {mac}\n")
                             log_file.flush()
@@ -774,7 +793,14 @@ class ConfigManager:
             # 停止扫描
             log_file.write("\n>>> 发送命令: scan off\n")
             log_file.flush()
-            self._run_bluetoothctl("scan", "off")
+
+            # 通过当前进程发送 scan off 命令
+            try:
+                proc.stdin.write("scan off\n")
+                proc.stdin.flush()
+                time.sleep(0.3)  # 等待命令执行
+            except:
+                pass
 
             # 退出 bluetoothctl
             try:

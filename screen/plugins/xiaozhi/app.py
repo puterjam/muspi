@@ -495,24 +495,20 @@ class xiaozhi(DisplayPlugin):
 
     # 按键回调
     def key_callback(self, evt):
-        # 获取全局功能按键
-        key_select = self.keymap.action_select  # 语音输入
-        key_cancel = self.keymap.action_cancel  # 切换聊天框
-
+        km = self.keymap
         self._wakeup()
-        if evt.value == 1:  # key down
-            # select 键 = 开始语音输入
-            if self.keymap.match(key_select):
-                self._on_listening()
+      
+        # select 键 = 开始语音输入
+        if km.down(km.action_select):
+            self._on_listening()
 
-            # cancel 键 = 切换聊天框显示
-            if self.keymap.match(key_cancel):
-                self.switch_chatbox()
+        # cancel 键 = 切换聊天框显示
+        if km.down(km.action_cancel):
+            self.switch_chatbox()
 
-        if evt.value == 0:  # key up
-            # select 键释放 = 停止语音输入
-            if self.keymap.match(key_select):
-                self._off_listening()
+        # select 键释放 = 停止语音输入
+        if km.up(km.action_select):
+            self._off_listening()
                      
     # 设置激活状态
     def set_active(self, value):

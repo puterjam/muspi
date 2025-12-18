@@ -5,7 +5,7 @@
 
     "settings": {
         "_comment": "全局设置",
-        "longpress_threshold": 3.0
+        "longpress_threshold": 1
     },
 
     "keymap": {
@@ -13,50 +13,63 @@
 
         "navigation": {
             "_comment": "导航类按键",
-            "up": ["KEY_UP"],
-            "down": ["KEY_DOWN"],
-            "left": ["KEY_LEFT"],
-            "right": ["KEY_RIGHT"]
+            "up": ["KEY_UP", {"type": "ABS", "code": "ABS_HAT0Y", "value": -1}],
+            "down": ["KEY_DOWN", {"type": "ABS", "code": "ABS_HAT0Y", "value": 1}],
+            "left": ["KEY_LEFT", {"type": "ABS", "code": "ABS_HAT0X", "value": -1}],
+            "right": ["KEY_RIGHT", {"type": "ABS", "code": "ABS_HAT0X", "value": 1}]
         },
 
         "action": {
             "_comment": "功能操作按键",
-            "select": ["KEY_Z"],
-            "cancel": ["KEY_X"],
-            "next_screen": ["KEY_PAGEDOWN"],
-            "previous_screen": ["KEY_PAGEUP"],
-            "menu": ["KEY_M"],
-            "screenshot": ["KEY_F12"]
+            "select": ["KEY_Z", "BTN_EAST"],
+            "cancel": ["KEY_X", "BTN_SOUTH"],
+            "next_screen": ["KEY_PAGEDOWN", "BTN_TR"],
+            "previous_screen": ["KEY_PAGEUP", "BTN_TL"],
+            "menu": ["KEY_M", "BTN_MODE"],
+            "screenshot": ["KEY_F12", "BTN_Z"]
         },
 
         "media": {
             "_comment": "媒体控制按键",
-            "play_pause": ["KEY_PLAYPAUSE", "KEY_KP1"],
-            "next": ["KEY_NEXTSONG", "KEY_KP2"],
+            "play_pause": ["KEY_PLAYPAUSE"],
+            "next": ["KEY_NEXTSONG"],
             "previous": ["KEY_PREVIOUSSONG"],
             "stop": ["KEY_STOPCD"],
-            "volume_up": ["KEY_VOLUMEUP"],
-            "volume_down": ["KEY_VOLUMEDOWN"],
+            "volume_up": ["KEY_VOLUMEUP", "BTN_TR2"],
+            "volume_down": ["KEY_VOLUMEDOWN", "BTN_TL2"],
             "mute": ["KEY_MUTE"]
         },
 
         "gamepad":{
-            "up": ["BTN_DPAD_UP", "ABS_HAT0Y"],
-            "down": ["BTN_DPAD_DOWN", "ABS_HAT0Y"],
-            "left": ["BTN_DPAD_LEFT", "ABS_HAT0X"],
-            "right": ["BTN_DPAD_RIGHT", "ABS_HAT0X"],
-            "a": ["BTN_A"],
-            "b": ["BTN_B"],
-            "x": ["BTN_X"],
-            "y": ["BTN_Y"],
+            "_comment": "手柄按键映射 - 支持按钮(BTN_DPAD_*)和轴事件(ABS_*)",
+            "up": [
+                "BTN_DPAD_UP",
+                {"type": "ABS", "code": "ABS_HAT0Y", "value": -1}
+            ],
+            "down": [
+                "BTN_DPAD_DOWN",
+                {"type": "ABS", "code": "ABS_HAT0Y", "value": 1}
+            ],
+            "left": [
+                "BTN_DPAD_LEFT",
+                {"type": "ABS", "code": "ABS_HAT0X", "value": -1}
+            ],
+            "right": [
+                "BTN_DPAD_RIGHT",
+                {"type": "ABS", "code": "ABS_HAT0X", "value": 1}
+            ],
+            "a": ["BTN_A", "BTN_EAST"],
+            "b": ["BTN_B", "BTN_SOUTH"],
+            "x": ["BTN_X", "BTN_WEST"],
+            "y": ["BTN_Y", "BTN_NORTH"],
             "tl": ["BTN_TL"],
             "tr": ["BTN_TR"],
-            "lb": ["BTN_LB"],
-            "rb": ["BTN_RB"],
+            "lb": ["BTN_LB", "BTN_TL2"],
+            "rb": ["BTN_RB", "BTN_TR2"],
             "thumb": ["BTN_THUMBL", "BTN_THUMBR"],
             "select": ["BTN_SELECT"],
             "start": ["BTN_START"],
-            "screenshot": ["KEY_RECORD"],
+            "screenshot": ["KEY_RECORD", "BTN_Z"],
             "mode": ["BTN_MODE"]
         },
 
@@ -128,7 +141,29 @@
             "BTN_TL",
             "BTN_TR",
             "BTN_SELECT",
-            "BTN_START"
-        ]
+            "BTN_START",
+            "BTN_DPAD_UP",
+            "BTN_DPAD_DOWN",
+            "BTN_DPAD_LEFT",
+            "BTN_DPAD_RIGHT"
+        ],
+        "gamepad_axes": {
+            "_comment": "手柄轴事件 - 使用对象格式: {type: 'ABS', code: 'ABS_XXX', value: N}",
+            "_example": {"type": "ABS", "code": "ABS_HAT0Y", "value": -1},
+            "hat": [
+                "ABS_HAT0X (-1=left, 1=right)",
+                "ABS_HAT0Y (-1=up, 1=down)",
+                "ABS_HAT1X",
+                "ABS_HAT1Y"
+            ],
+            "stick": [
+                "ABS_X (左摇杆X轴)",
+                "ABS_Y (左摇杆Y轴)",
+                "ABS_RX (右摇杆X轴)",
+                "ABS_RY (右摇杆Y轴)",
+                "ABS_Z (左扳机)",
+                "ABS_RZ (右扳机)"
+            ]
+        }
     }
 }

@@ -71,11 +71,7 @@ class life(DisplayPlugin):
             self.manager.key_listener.off(self.key_callback)
     
     def key_callback(self, evt):
-        # 获取全局功能按键
-        key_select = self.keymap.action_select  # 重新初始化
-        key_cancel = self.keymap.action_cancel  # 重新初始化
-
-        if evt.value == 1:  # key down
-            # select 或 cancel 键都可以重新初始化
-            if self.keymap.match(key_select) or self.keymap.match(key_cancel):
-                self.initialize_grid()
+        km = self.keymap
+        
+        if km.down(km.action_select, km.action_cancel):
+            self.initialize_grid()

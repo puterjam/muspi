@@ -198,14 +198,17 @@ class airplay(DisplayPlugin):
             self.set_active(False)
 
     def key_callback(self, evt):
-        # 获取全局功能按键和媒体按键
-        key_nav_up = self.keymap.nav_up
-        key_nav_down = self.keymap.nav_down
+        km = self.keymap
 
-        if evt.value == 1:  # key down
-            # volume up/down
-            if self.keymap.match(key_nav_up):
-                self.manager.adjust_volume("up")
+        # volume up/down
+        if km.down(km.nav_up):
+            self.manager.adjust_volume("up")
 
-            if self.keymap.match(key_nav_down):
-                self.manager.adjust_volume("down")
+        if km.down(km.nav_down):
+            self.manager.adjust_volume("down")
+
+        if km.longpress(km.nav_up, repeat=True):
+            self.manager.adjust_volume("up")
+
+        if km.longpress(km.nav_down, repeat=True):
+            self.manager.adjust_volume("down")

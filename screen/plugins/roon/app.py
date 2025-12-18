@@ -306,46 +306,38 @@ class roon(DisplayPlugin):
                 
 
     def key_callback(self, evt):
-        # 获取全局功能按键和媒体按键
-        key_select = self.keymap.action_select  # 播放/暂停
-        key_cancel = self.keymap.action_cancel  # 下一曲
-        key_play_pause = self.keymap.media_play_pause
-        key_next = self.keymap.media_next
-        key_previous = self.keymap.media_previous
-        key_stop = self.keymap.media_stop  # 停止播放
-        
-        key_nav_up = self.keymap.nav_up
-        key_nav_down = self.keymap.nav_down
+        km = self.keymap
 
-        if evt.value == 1:  # key down
-            # select 键或专用播放/暂停键
-            if self.keymap.match(key_select) or self.keymap.match(key_play_pause):
-                self.roon.playback_control(self.zone_id, control="playpause")
-            # cancel 键或专用下一曲键
-            if self.keymap.match(key_cancel) or self.keymap.match(key_next):
-                self.roon.playback_control(self.zone_id, control="next")
-            # 专用上一曲键
-            if self.keymap.match(key_previous):
-                self.roon.playback_control(self.zone_id, control="previous")
-            # 专用停止键
-            if self.keymap.match(key_stop):
-                self.roon.playback_control(self.zone_id, control="stop")
+        # select 键或专用播放/暂停键
+        if km.down(km.action_select) or km.down(km.media_play_pause):
+            self.roon.playback_control(self.zone_id, control="playpause")
             
-            # volume up/down
-            if self.keymap.match(key_nav_up):
-                self.manager.adjust_volume("up")
-
-            if self.keymap.match(key_nav_down):
-                self.manager.adjust_volume("down")
+        # cancel 键或专用下一曲键
+        if km.down(km.action_cancel) or km.down(km.media_next):
+            self.roon.playback_control(self.zone_id, control="next")
+            
+        # 专用上一曲键
+        if km.down(km.media_previous):
+            self.roon.playback_control(self.zone_id, control="previous")
+            
+        # 专用停止键
+        if km.down(km.media_stop):
+            self.roon.playback_control(self.zone_id, control="stop")
         
-        # if evt.value == 2: 
-        #     # volume up/down
-        #     if self.keymap.match(key_nav_up):
-        #         self.manager.adjust_volume("up")
+        # volume up/down
+        if km.down(km.nav_up):
+            self.manager.adjust_volume("up")
 
-        #     if self.keymap.match(key_nav_down):
-        #         self.manager.adjust_volume("down")
+        if km.down(km.nav_down):
+            self.manager.adjust_volume("down")
 
+        if km.longpress(km.nav_up, repeat=True):
+            self.manager.adjust_volume("up")
+
+        if km.longpress(km.nav_down, repeat=True):
+            self.manager.adjust_volume("down")
+        
+        km.up(km.nav_up, km.nav_down) # 释放 nav_up,nav_down 键
 
     def event_listener(self):
         self._read_metadata()

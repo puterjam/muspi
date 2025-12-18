@@ -139,26 +139,29 @@ class spectrum(DisplayPlugin):
         was_active = self.is_active
         super().set_active(active)
 
-        if active and not was_active:
+        if active:
             self._start_capture()
             self.manager.key_listener.on(self.key_callback)
-        elif not active and was_active:
+        elif not active:
             self._stop_capture()
             self.manager.key_listener.off(self.key_callback)
 
     # 处理按键事件
     def key_callback(self, evt):
-        # 获取全局功能按键和媒体按键
-        key_nav_up = self.keymap.nav_up
-        key_nav_down = self.keymap.nav_down
+        km = self.keymap
 
-        if evt.value == 1:  # key down
-            # volume up/down
-            if self.keymap.match(key_nav_up):
-                self.manager.adjust_volume("up")
+        # volume up/down
+        if km.down(km.nav_up):
+            self.manager.adjust_volume("up")
 
-            if self.keymap.match(key_nav_down):
-                self.manager.adjust_volume("down")
+        if km.down(km.nav_down):
+            self.manager.adjust_volume("down")
+
+        if km.longpress(km.nav_up, repeat=True):
+            self.manager.adjust_volume("up")
+
+        if km.longpress(km.nav_down, repeat=True):
+            self.manager.adjust_volume("down")
 
     # 处理显示状态更新事件
     def on_disp_status_update(self, status: str):

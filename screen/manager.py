@@ -198,75 +198,45 @@ class DisplayManager:
     # 处理按键事件
     def key_callback(self, evt):
         """handle the key event"""
-        
-        # 获取全局按键
-        key_next_screen = self.keymap.action_next
-        key_previous_screen = self.keymap.action_previous
-        key_volume_up = self.keymap.media_volume_up
-        key_volume_down = self.keymap.media_volume_down
-        key_volume_mute = self.keymap.media_volume_mute
-
-        # 获取导航键
-        key_nav_left = self.keymap.nav_left
-        key_nav_right = self.keymap.nav_right
-        key_nav_up = self.keymap.nav_up
-        key_nav_down = self.keymap.nav_down
-
-        keycode = evt.code
+        km = self.keymap
         active_plugin = self.last_active
+        
         exclusive_nav = bool(
             active_plugin and hasattr(active_plugin, "wants_exclusive_input")
             and active_plugin.wants_exclusive_input()
         )
 
-        # 判断按键类别
-        nav_left = keycode in key_nav_left
-        nav_right = keycode in key_nav_right
-        nav_up = keycode in key_nav_up
-        nav_down = keycode in key_nav_down
-        next_screen_key = keycode in key_next_screen
-        prev_screen_key = keycode in key_previous_screen
-        volume_up_key = keycode in key_volume_up
-        volume_down_key = keycode in key_volume_down
-       
-
         # 方向键在独占模式下不会触发全局操作
         allow_nav_for_screen = not exclusive_nav
-        allow_nav_for_volume = not exclusive_nav
+           
+        if self.sleep:
+            self.turn_on_screen()
+        else:
+            # Screen switching: next_screen/previous_screen or left/right
+            if km.down(km.action_next_screen) or (allow_nav_for_screen and km.down(km.nav_right)):
+                self.active_next()
 
-        is_volume_up = volume_up_key
-        is_volume_down = volume_down_key
-        is_volume_mute = keycode in key_volume_mute
+            if km.down(km.action_prev_screen) or (allow_nav_for_screen and km.down(km.nav_left)):
+                self.active_prev()
 
-        if evt.value == 1:  # key down
-            if self.sleep:
-                self.turn_on_screen()
-            else:
-                # Screen switching: next_screen/previous_screen or left/right
-                if next_screen_key or (allow_nav_for_screen and nav_right):
-                    self.active_next()
+            # Volume adjustment on initial press
+            if km.down(km.media_volume_up):
+                self.adjust_volume("up")
 
-                if prev_screen_key or (allow_nav_for_screen and nav_left):
-                    self.active_prev()
+            if km.down(km.media_volume_down):
+                self.adjust_volume("down")
 
-                # Volume adjustment on initial press
-                if is_volume_up:
-                    self.adjust_volume("up")
-
-                if is_volume_down:
-                    self.adjust_volume("down")
-
-                # Volume mute toggle
-                if is_volume_mute:
-                    self.is_muted = toggle_mute()
-                    if self.is_muted is not None:
-                        # 显示静音状态
-                        if self.is_muted:
-                            self.overlay_manager.show_volume(0)
-                        else:
-                            volume = get_volume_percent()
-                            if volume is not None:
-                                self.overlay_manager.show_volume(volume)
+            # Volume mute toggle
+            if km.down(km.media_volume_mute):
+                self.is_muted = toggle_mute()
+                if self.is_muted is not None:
+                    # 显示静音状态
+                    if self.is_muted:
+                        self.overlay_manager.show_volume(0)
+                    else:
+                        volume = get_volume_percent()
+                        if volume is not None:
+                            self.overlay_manager.show_volume(volume)
 
     def run(self):
         detect_pcm_controls()
