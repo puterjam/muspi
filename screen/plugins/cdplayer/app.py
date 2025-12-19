@@ -127,87 +127,59 @@ class cdplayer(DisplayPlugin):
             self.set_active(False)
 
     def key_callback(self, evt):
-        # 获取全局功能按键
-        key_select = self.keymap.action_select  # 播放/暂停/停止
-        key_cancel = self.keymap.action_cancel  # 下一曲/弹出
+        km = self.keymap
         
-        key_prev = self.keymap.media_previous  # 上一曲
-        key_next = self.keymap.media_next  # 下一曲
-        key_stop = self.keymap.media_stop  # 停止播放
-        key_play_pause = self.keymap.media_play_pause  # 播放/暂停
+        # 长按 select 键 = 停止
+        if km.longpress(km.action_select):
+            self.media_player.stop()
+            self.media_player.cd.reset()
+            self._is_in_longpress = True
 
-        if evt.value == 1:  # key down - record press start time
-            self._key_press_start_time[evt.code] = time.time()
-            self._is_in_longpress = False
+        # 长按 cancel 键 = 弹出 CD
+        elif km.longpress(km.action_cancel):
+            self.media_player.eject()
+            self._is_in_longpress = True
 
-        elif evt.value == 2:  # key hold (repeated event)
-            # Check if key has been held long enough (3 seconds)
-            if evt.code in self._key_press_start_time and not self._is_in_longpress:
-                press_duration = time.time() - self._key_press_start_time[evt.code]
+        # 短按 select 键 = 播放/暂停/尝试播放
+        if km.down(km.action_select):
+            if self.media_player.is_running:
+                # 正在播放，则暂停/恢复
+                self.media_player.pause_or_play()
+            elif self.media_player.cd.is_inserted and self.media_player.cd.read_status != "reading":
+                # CD已插入且读取完成，直接播放
+                self.media_player.play()
+            else:
+                # CD未插入或正在读取，尝试加载并播放
+                self.media_player.try_to_play()
 
-                if press_duration >= self._longpress_duration:
-                    # 长按 select 键 = 停止
-                    if self.keymap.match(key_select):
-                        self.media_player.stop()
-                        self.media_player.cd.reset()
-                        self._is_in_longpress = True
+        # 短按 cancel 键 = 下一曲
+        elif km.down(km.media_next) and self.media_player.cd.is_inserted:
+            self.media_player.next_track()
 
-                    # 长按 cancel 键 = 弹出 CD
-                    elif self.keymap.match(key_cancel):
-                        self.media_player.eject()
-                        self._is_in_longpress = True
+        # 上一曲
+        elif km.down(km.media_previous) and self.media_player.cd.is_inserted:
+            self.media_player.prev_track()
 
-        elif evt.value == 0:  # key up
-            # Check if it was a long press or short press
-            if evt.code in self._key_press_start_time:
-                press_duration = time.time() - self._key_press_start_time[evt.code]
+        # 下一曲
+        elif km.down(km.media_next) and self.media_player.cd.is_inserted:
+            self.media_player.next_track()
 
-                # Only handle short press if not already handled as long press
-                if not self._is_in_longpress and press_duration < self._longpress_duration:
-                    # 短按 select 键 = 播放/暂停/尝试播放
-                    if self.keymap.match(key_select):
-                        if self.media_player.is_running:
-                            # 正在播放，则暂停/恢复
-                            self.media_player.pause_or_play()
-                        elif self.media_player.cd.is_inserted and self.media_player.cd.read_status != "reading":
-                            # CD已插入且读取完成，直接播放
-                            self.media_player.play()
-                        else:
-                            # CD未插入或正在读取，尝试加载并播放
-                            self.media_player.try_to_play()
+        # 停止播放
+        elif km.down(km.media_stop):
+            self.media_player.stop()
+            self.media_player.cd.reset()
 
-                    # 短按 cancel 键 = 下一曲
-                    elif self.keymap.match(key_cancel) and self.media_player.cd.is_inserted:
-                        self.media_player.next_track()
-
-                    # 上一曲
-                    elif self.keymap.match(key_prev) and self.media_player.cd.is_inserted:
-                        self.media_player.prev_track()
-
-                    # 下一曲
-                    elif self.keymap.match(key_next) and self.media_player.cd.is_inserted:
-                        self.media_player.next_track()
-
-                    # 停止播放
-                    elif self.keymap.match(key_stop):
-                        self.media_player.stop()
-                        self.media_player.cd.reset()
-
-                    # 播放/暂停
-                    elif self.keymap.match(key_play_pause):
-                        if self.media_player.is_running:
-                            # 正在播放，则暂停/恢复
-                            self.media_player.pause_or_play()
-                        elif self.media_player.cd.is_inserted and self.media_player.cd.read_status != "reading":
-                            # CD已插入且读取完成，直接播放
-                            self.media_player.play()
-                        else:
-                            # CD未插入或正在读取，尝试加载并播放
-                            self.media_player.try_to_play()
-
-                # Clean up
-                del self._key_press_start_time[evt.code]
-                self._is_in_longpress = False  
+        # 播放/暂停
+        elif km.down(km.media_play_pause):
+            if self.media_player.is_running:
+                # 正在播放，则暂停/恢复
+                self.media_player.pause_or_play()
+            elif self.media_player.cd.is_inserted and self.media_player.cd.read_status != "reading":
+                # CD已插入且读取完成，直接播放
+                self.media_player.play()
+            else:
+                # CD未插入或正在读取，尝试加载并播放
+                self.media_player.try_to_play()
 
 # 媒体播放器类
 class MediaPlayer:

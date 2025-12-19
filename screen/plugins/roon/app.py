@@ -317,11 +317,11 @@ class roon(DisplayPlugin):
             self.roon.playback_control(self.zone_id, control="next")
             
         # 专用上一曲键
-        if km.down(km.media_previous):
+        if km.down(km.media_previous) or km.down(km.gamepad_w):
             self.roon.playback_control(self.zone_id, control="previous")
             
         # 专用停止键
-        if km.down(km.media_stop):
+        if km.down(km.media_stop) or km.down(km.gamepad_n):
             self.roon.playback_control(self.zone_id, control="stop")
         
         # volume up/down

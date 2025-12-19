@@ -607,6 +607,26 @@ class KeyMap:
         return self._get_key("gamepad", "y")
 
     @property
+    def gamepad_e(self):
+        """获取手柄E键"""
+        return self._get_key("gamepad", "e")
+
+    @property
+    def gamepad_s(self):
+        """获取手柄S键"""
+        return self._get_key("gamepad", "s")
+
+    @property
+    def gamepad_w(self):
+        """获取手柄W键"""
+        return self._get_key("gamepad", "w")
+
+    @property
+    def gamepad_n(self):
+        """获取手柄N键"""
+        return self._get_key("gamepad", "n")
+
+    @property
     def gamepad_tl(self):
         """获取手柄TL键（左扳机上键）"""
         return self._get_key("gamepad", "tl")
