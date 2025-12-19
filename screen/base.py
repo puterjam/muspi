@@ -86,10 +86,12 @@ class DisplayPlugin(ABC):
     def set_active(self, active):
         """set the active state of the plugin"""
         if self.manager.last_active != self and active:
-            if self.manager.last_active:
+            if self.manager.last_active and self.is_active:
                 self.manager.last_active.set_active(False)
+
             self.manager.last_active = self
             LOGGER.info(f"[\033[1m\033[37m{self.name}\033[0m] set active. register id: {self.id}")
+
             self.manager.active_id = self.id
             if self.manager.sleep:
                 self.manager.turn_on_screen()

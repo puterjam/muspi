@@ -127,13 +127,17 @@ class DisplayManager:
 
     def active_next(self):
         """activate the next plugin"""
+        # Save current active_id to avoid it being modified during set_active() calls
+        current_id = self.active_id
+
         if self.last_active:
             self.last_screen_image = self.last_active.get_image()
             self.anim.reset("main_screen")
             self.anim.direction = 1  # forward direction
             self.anim_just_started = True  # 标记动画刚开始
+            self.last_active.set_active(False)
 
-        next_id = (self.active_id + 1) % len(self.plugins)
+        next_id = (current_id + 1) % len(self.plugins)
 
         # check if the next plugin is a player and not playing
         while (
@@ -142,17 +146,22 @@ class DisplayManager:
             and not self.plugins[next_id]["plugin"].is_playing()
         ):
             next_id = (next_id + 1) % len(self.plugins)
+
         self.plugins[next_id]["plugin"].set_active(True)
 
     def active_prev(self):
         """activate the previous plugin"""
+        # Save current active_id to avoid it being modified during set_active() calls
+        current_id = self.active_id
+
         if self.last_active:
             self.last_screen_image = self.last_active.get_image()
             self.anim.reset("main_screen")
             self.anim.direction = -1  # reverse direction
             self.anim_just_started = True  # 标记动画刚开始
+            self.last_active.set_active(False)
 
-        prev_id = (self.active_id - 1) % len(self.plugins)
+        prev_id = (current_id - 1) % len(self.plugins)
 
         # check if the previous plugin is a player and not playing
         while (
@@ -213,7 +222,7 @@ class DisplayManager:
             if km.down(km.action_next_screen) or (allow_nav_for_screen and km.down(km.nav_right)):
                 self.active_next()
 
-            if km.down(km.action_prev_screen) or (allow_nav_for_screen and km.down(km.nav_left)):
+            elif km.down(km.action_prev_screen) or (allow_nav_for_screen and km.down(km.nav_left)):
                 self.active_prev()
 
             # Volume adjustment on initial press

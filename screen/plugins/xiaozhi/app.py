@@ -495,7 +495,7 @@ class xiaozhi(DisplayPlugin):
 
     # 按键回调
     def key_callback(self, evt):
-        LOGGER.info(f"xiaozhi key detected: {evt.code}")
+        # LOGGER.info(f"xiaozhi key detected: {evt.code}")
         
         km = self.keymap
         self._wakeup()
